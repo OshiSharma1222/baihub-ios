@@ -4,7 +4,7 @@ module.exports = {
   expo: {
     name: 'Baihub',
     slug: 'baihub-mobile',
-    version: '1.0.0',
+    version: '1.0.1',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -27,6 +27,7 @@ module.exports = {
       },
     },
     android: {
+      versionCode: 2,
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#ffcc00', // Matches the yellow background in your image

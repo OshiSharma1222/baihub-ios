@@ -225,7 +225,7 @@ export default function UserDetailsScreen({ navigation }: any) {
 
           {/* Email or Phone Field */}
           <View style={styles.inputSection}>
-            <RNText style={styles.inputLabel}>Email or Phone</RNText>
+            <RNText style={styles.inputLabel}>Phone Number</RNText>
             <TextInput
               mode="outlined"
               value={emailOrPhone}
@@ -233,13 +233,14 @@ export default function UserDetailsScreen({ navigation }: any) {
                 setEmailOrPhone(text);
                 setErrors({ ...errors, emailOrPhone: undefined });
               }}
-              placeholder="Enter email or phone"
-              keyboardType="default"
+              placeholder="Phone number"
+              keyboardType="phone-pad"
               autoCapitalize="none"
               style={styles.input}
               outlineStyle={styles.inputOutline}
               error={!!errors.emailOrPhone}
-              left={<TextInput.Icon icon="email" />}
+              editable={false}
+              left={<TextInput.Icon icon="phone" />}
             />
             {errors.emailOrPhone && (
               <RNText style={styles.errorText}>{errors.emailOrPhone}</RNText>
