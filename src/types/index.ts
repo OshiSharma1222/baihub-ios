@@ -11,6 +11,7 @@ export interface ApiError {
   message: string;
   statusCode?: number;
   errors?: Record<string, string[]>;
+  isNetworkError?: boolean;
 }
 
 export interface PaginatedResponse<T> {

@@ -17,10 +17,10 @@ const getEnvVar = (key: string, defaultValue: string): string => {
 };
 
 export const ENV = {
-  API_BASE_URL: getEnvVar('API_BASE_URL', 'http://10.0.2.2:3000'),
+  API_BASE_URL: getEnvVar('API_BASE_URL', 'https://api.baihub.co.in'),
   API_TIMEOUT: parseInt(getEnvVar('API_TIMEOUT', '30000'), 10),
-  ENVIRONMENT: (getEnvVar('ENVIRONMENT', 'development') as 'development' | 'staging' | 'production'),
-  APP_ENVIRONMENT: (getEnvVar('APP_ENVIRONMENT', 'dev') as 'dev' | 'production'),
+  ENVIRONMENT: (getEnvVar('ENVIRONMENT', 'production') as 'development' | 'staging' | 'production'),
+  APP_ENVIRONMENT: (getEnvVar('APP_ENVIRONMENT', 'production') as 'dev' | 'production'),
 };
 
 export const API_ENDPOINTS = {
@@ -49,6 +49,7 @@ export const API_ENDPOINTS = {
   ORDERS: '/orders',
   ORDERS_ME: '/orders/me',
   ORDER_DETAILS: (orderId: string) => `/orders/${orderId}`,
+  FREE_PLAN_STATUS: '/orders/me/free-plan-status',
 } as const;
 
 export const STORAGE_KEYS = {

@@ -20,6 +20,7 @@ import { AddressBottomSheet } from '../../components/common/AddressBottomSheet';
 import { homeApi } from '../../api/endpoints';
 import RazorpayCheckout from 'react-native-razorpay';
 import { baihubAnalytics } from '../../services/baihub-analytics.service';
+import { toast } from '../../utils/toast';
 
 type CheckoutRouteProp = RouteProp<RootStackParamList, 'Checkout'>;
 type CheckoutNavigationProp = NativeStackNavigationProp<
@@ -46,7 +47,7 @@ export default function CheckoutScreen() {
     async (order: Order) => {
       if (!order.meta?.razorpayOrder) {
         logger.error('Razorpay order details missing');
-        alert('Payment details not available. Please try again.');
+        toast.error('Payment details not available. Please try again.');
         return;
       }
 
@@ -126,15 +127,15 @@ export default function CheckoutScreen() {
         });
 
         if (error?.code === 'NETWORK_ERROR') {
-          alert('Network error. Please check your internet connection.');
+          toast.error('Network error. Please check your internet connection.');
         } else if (error?.code === 'INVALID_OPTIONS') {
-          alert('Invalid payment options. Please contact support.');
+          toast.error('Invalid payment options. Please contact support.');
         } else if (error?.description) {
           if (error.description !== 'User closed the checkout form') {
-            alert(error.description || 'Payment failed. Please try again.');
+            toast.error(error.description || 'Payment failed. Please try again.');
           }
         } else if (error?.message) {
-          alert(error.message);
+          toast.error(error.message);
         }
       }
     },
@@ -144,7 +145,7 @@ export default function CheckoutScreen() {
   const processOrder = useCallback(async (address: Address) => {
     if (!address.id) {
       logger.error('Address ID is missing');
-      alert('Address ID is missing. Please try again.');
+      toast.error('Address ID is missing. Please try again.');
       return;
     }
 
@@ -200,8 +201,32 @@ export default function CheckoutScreen() {
       }
     } catch (err: any) {
       logger.error('Failed to create order', err);
-      // Show error to user
-      alert(err.message || 'Failed to process order. Please try again.');
+      
+      // Handle duplicate free plan enrollment error
+      if (err.response?.status === 400) {
+        const errorMessage = err.response?.data?.message || err.message || '';
+        
+        if (errorMessage.includes('already enrolled in a free plan')) {
+          // Extract plan name from error message if available
+          const planMatch = errorMessage.match(/Your existing free plan enrollment: (.+)/);
+          const existingPlanName = planMatch ? planMatch[1] : 'Free Plan';
+          
+          // Show user-friendly toast error
+          toast.error(
+            `You've already enrolled in a free plan: ${existingPlanName}. Each user can only enroll in one free plan. Please choose a paid plan to continue.`,
+            'Free Plan Already Enrolled'
+          );
+          
+          // Navigate to orders after a short delay
+          setTimeout(() => {
+            navigation.navigate('Orders');
+          }, 2000);
+          return;
+        }
+      }
+      
+      // Show generic error for other cases
+      toast.error(err.message || 'Failed to process order. Please try again.');
     } finally {
       setProcessingOrder(false);
     }

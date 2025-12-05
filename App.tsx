@@ -10,6 +10,8 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { remoteConfigService } from './src/services/remoteConfig.service';
 import { analyticsService } from './src/services/analytics.service';
 import { logger } from './src/utils/logger';
+import Toast from 'react-native-toast-message';
+import { toastConfig } from './src/components/common/ToastConfig';
 
 export default function App() {
   useEffect(() => {
@@ -37,6 +39,10 @@ export default function App() {
         <PaperProvider theme={lightTheme}>
           <RootNavigator />
           <StatusBar style="auto" />
+          <Toast
+            topOffset={60}
+            config={toastConfig}
+          />
         </PaperProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

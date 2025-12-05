@@ -258,11 +258,30 @@ export const homeApi = {
 };
 
 // Orders API
+export interface GetOrdersParams {
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+}
+
+export interface FreePlanStatusResponse {
+  hasFreePlan: boolean;
+  freePlanOrder: {
+    id: string;
+    planId: string;
+    planTitle: string;
+    createdAt: string;
+    amount: number;
+  } | null;
+}
+
 export const ordersApi = {
-  getUserOrders: (): Promise<ApiResponse<Order[]>> =>
-    apiClient.get(API_ENDPOINTS.ORDERS_ME),
+  getUserOrders: (params?: GetOrdersParams): Promise<ApiResponse<Order[]>> =>
+    apiClient.get(API_ENDPOINTS.ORDERS_ME, { params }),
 
   getOrderById: (orderId: string): Promise<ApiResponse<Order>> =>
     apiClient.get(`${API_ENDPOINTS.ORDERS}/${orderId}`),
+
+  getFreePlanStatus: (): Promise<ApiResponse<FreePlanStatusResponse>> =>
+    apiClient.get(API_ENDPOINTS.FREE_PLAN_STATUS),
 };
 

@@ -1,6 +1,6 @@
 // Address Bottom Sheet Component
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -34,8 +34,8 @@ export const AddressBottomSheet: React.FC<AddressBottomSheetProps> = ({
   const [flatNumber, setFlatNumber] = useState('');
   const [towerBuilding, setTowerBuilding] = useState('');
   const [societyLocality, setSocietyLocality] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
+  const [city, setCity] = useState('Bengaluru');
+  const [state, setState] = useState('Karnataka');
   const [pincode, setPincode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -115,6 +115,20 @@ export const AddressBottomSheet: React.FC<AddressBottomSheetProps> = ({
     setError(null);
     onClose();
   }, [onClose]);
+
+  // Reset form with default values when modal opens
+  useEffect(() => {
+    if (visible) {
+      // Reset all fields except city and state (which have defaults)
+      setFlatNumber('');
+      setTowerBuilding('');
+      setSocietyLocality('');
+      setCity('Bengaluru');
+      setState('Karnataka');
+      setPincode('');
+      setError(null);
+    }
+  }, [visible]);
 
   return (
     <Modal

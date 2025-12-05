@@ -18,14 +18,17 @@ module.exports = {
       bundleIdentifier: 'com.baihub.app',
       supportsTablet: true,
       infoPlist: {
-        NSLocationWhenInUseUsageDescription: 'This app needs access to your location to automatically detect your city.',
-        NSLocationAlwaysUsageDescription: 'This app needs access to your location to automatically detect your city.',
+        NSLocationWhenInUseUsageDescription: 'This app needs access to your location to automatically detect your city. You can enter your city manually if you prefer not to share your location.',
+        ITSAppUsesNonExemptEncryption: false,
       },
       googleServicesFile: './GoogleService-Info.plist',
+      config: {
+        usesNonExemptEncryption: false,
+      },
     },
     android: {
       adaptiveIcon: {
-        foregroundImage: './assets/adaptive-icon.png',
+        foregroundImage: './assets/icon.png',  // Use same icon as iOS for consistency
         backgroundColor: '#ffffff',
       },
       edgeToEdgeEnabled: true,
@@ -42,13 +45,20 @@ module.exports = {
       bundler: 'metro',
     },
     extra: {
-      API_BASE_URL: process.env.API_BASE_URL || 'https://alec-nonexpressive-overrigorously.ngrok-free.dev',
+      // Production API URL - used in release builds
+      // For local development, override via .env file (not committed)
+      API_BASE_URL: process.env.API_BASE_URL || 'https://api.baihub.co.in',
       API_TIMEOUT: process.env.API_TIMEOUT || '30000',
-      ENVIRONMENT: process.env.ENVIRONMENT || 'development',
+      // Default to production for release builds
+      ENVIRONMENT: process.env.ENVIRONMENT || (process.env.NODE_ENV === 'production' ? 'production' : 'development'),
+      "eas": {
+        "projectId": "63f0b4db-fe4e-4bdb-a279-20135f9e3b50"
+      }
     },
     plugins: [
       '@react-native-firebase/app',
       './plugins/with-google-services.js',
+      './plugins/with-modular-headers.js',
     ],
   },
 };

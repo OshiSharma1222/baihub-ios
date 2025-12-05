@@ -6,7 +6,11 @@ import { logger } from '../utils/logger';
  * Provides easy-to-use methods for tracking app events and user behavior
  * 
  * Note: React Native Firebase Analytics uses the default export pattern.
- * Firebase auto-initializes from google-services.json on native side.
+ * Firebase auto-initializes from google-services.json (Android) and GoogleService-Info.plist (iOS) on native side.
+ * 
+ * Important: If you see a warning about "Ads account not linked to Google Analytics",
+ * this is non-critical. Firebase Analytics works perfectly without Google Ads integration.
+ * The warning can be safely ignored - it only means advanced Ads conversion features won't be available.
  */
 class AnalyticsService {
   private analyticsInitialized = false;
@@ -36,11 +40,32 @@ class AnalyticsService {
         
         // Try to enable analytics collection to verify it's working
         await analyticsInstance.setAnalyticsCollectionEnabled(true);
+        
+        // Set default event parameters (optional but recommended)
+        // This helps with data consistency
+        await analyticsInstance.setDefaultEventParameters({
+          app_version: '1.0.0',
+          platform: 'mobile',
+        });
+        
         this.analyticsInitialized = true;
         logger.info('Analytics: Firebase Analytics initialized successfully');
         return;
       } catch (error: any) {
         const errorMessage = error?.message || String(error) || 'Unknown error';
+        
+        // Ignore Google Ads linking warnings - these are non-critical
+        if (errorMessage.includes('Ads account not linked') ||
+            errorMessage.includes('conversion measurement') ||
+            errorMessage.includes('on-device conversion')) {
+          // These are warnings, not errors - Firebase Analytics still works
+          logger.info('Analytics: Google Ads integration warning (non-critical)', {
+            message: 'Ads account not linked - Analytics will work without Ads integration',
+          });
+          // Continue as if successful - Analytics works without Ads
+          this.analyticsInitialized = true;
+          return;
+        }
         
         // If Firebase app isn't initialized yet, wait and retry
         if (errorMessage.includes('No Firebase App') || 

@@ -13,11 +13,12 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { homeApi } from '../../api/endpoints';
+import { homeApi, ordersApi, FreePlanStatusResponse } from '../../api/endpoints';
 import { Plan } from '../../types/home.types';
 import { RootStackParamList } from '../../navigation/types';
 import { logger } from '../../utils/logger';
 import { baihubAnalytics } from '../../services/baihub-analytics.service';
+import { toast } from '../../utils/toast';
 
 type PlansSelectionRouteProp = RouteProp<RootStackParamList, 'PlansSelection'>;
 type PlansSelectionNavigationProp = NativeStackNavigationProp<
@@ -37,17 +38,64 @@ export default function PlansSelectionScreen() {
   const { areaId, categoryId, areaName, categoryName, serviceId, timeSlots } = route.params;
 
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [allPlans, setAllPlans] = useState<Plan[]>([]); // Store all plans including free plans
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasFreePlan, setHasFreePlan] = useState(false);
+  const [existingFreePlan, setExistingFreePlan] = useState<FreePlanStatusResponse['freePlanOrder'] | null>(null);
+
+  const checkFreePlanStatus = useCallback(async () => {
+    try {
+      const response = await ordersApi.getFreePlanStatus();
+      if (response.data) {
+        setHasFreePlan(response.data.hasFreePlan);
+        setExistingFreePlan(response.data.freePlanOrder);
+        return response.data;
+      }
+    } catch (err: any) {
+      logger.error('Failed to check free plan status', err);
+      // Don't block plan loading if this fails
+    }
+    return { hasFreePlan: false, freePlanOrder: null };
+  }, []);
 
   const fetchPlans = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Check free plan status first
+      const freePlanStatus = await checkFreePlanStatus();
+      
+      // Fetch all plans
       const response = await homeApi.getPlans({ includeInactive: false });
       if (response.data) {
-        setPlans(response.data);
+        // Store all plans
+        setAllPlans(response.data);
+        
+        if (freePlanStatus.hasFreePlan) {
+          // User has a free plan - filter out free plans (plans with total <= 0)
+          const filteredPlans = response.data.filter(plan => {
+            const planTotal = plan.price?.total || 0;
+            return planTotal > 0; // Only show paid plans
+          });
+          
+          // If filtered plans is empty, show free plans as disabled
+          if (filteredPlans.length === 0) {
+            // Show free plans but they will be disabled
+            const freePlans = response.data.filter(plan => {
+              const planTotal = plan.price?.total || 0;
+              return planTotal <= 0; // Show free plans
+            });
+            setPlans(freePlans);
+          } else {
+            setPlans(filteredPlans);
+          }
+        } else {
+          // User doesn't have a free plan - show all plans
+          setPlans(response.data);
+        }
       }
     } catch (err: any) {
       logger.error('Failed to fetch plans', err);
@@ -55,7 +103,7 @@ export default function PlansSelectionScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [checkFreePlanStatus]);
 
   useEffect(() => {
     fetchPlans();
@@ -63,24 +111,36 @@ export default function PlansSelectionScreen() {
 
   const handlePlanSelect = useCallback(async (planId: string) => {
     const plan = plans.find(p => p.id === planId);
-    if (plan) {
-      // Log analytics event
-      await baihubAnalytics.logPlanCardClicked({
-        area_id: areaId,
-        area_name: areaName,
-        service_id: categoryId,
-        service_name: categoryName,
-        came_from: categoryId ? 'area_wise_listing' : 'service_wise_listing',
-        plan_id: planId,
-        plan_amount: plan.price.amount,
-        plan_discount: plan.price.discount,
-        plan_total: plan.price.total,
-        plan_title: plan.title,
-        plan_description: plan.description,
-      });
+    if (!plan) return;
+    
+    // Check if this is a free plan and user already has one
+    const planTotal = plan.price?.total || 0;
+    if (planTotal <= 0 && hasFreePlan) {
+      // This shouldn't happen if filtering works, but handle it anyway
+      toast.error(
+        `You've already enrolled in a free plan: ${existingFreePlan?.planTitle || 'Free Plan'}. Each user can only enroll in one free plan.`,
+        'Free Plan Already Enrolled'
+      );
+      return;
     }
+    
+    // Log analytics event
+    await baihubAnalytics.logPlanCardClicked({
+      area_id: areaId,
+      area_name: areaName,
+      service_id: categoryId,
+      service_name: categoryName,
+      came_from: categoryId ? 'area_wise_listing' : 'service_wise_listing',
+      plan_id: planId,
+      plan_amount: plan.price.amount,
+      plan_discount: plan.price.discount,
+      plan_total: plan.price.total,
+      plan_title: plan.title,
+      plan_description: plan.description,
+    });
+    
     setSelectedPlan(planId);
-  }, [plans, areaId, areaName, categoryId, categoryName]);
+  }, [plans, areaId, areaName, categoryId, categoryName, hasFreePlan, existingFreePlan]);
 
   const handleContinue = useCallback(async () => {
     if (!selectedPlan) {
@@ -226,6 +286,9 @@ export default function PlansSelectionScreen() {
       >
         {plans.map((plan) => {
           const isSelected = selectedPlan === plan.id;
+          const planTotal = plan.price?.total || 0;
+          const isFreePlan = planTotal <= 0;
+          const isDisabled = isFreePlan && hasFreePlan;
 
           return (
             <TouchableOpacity
@@ -233,9 +296,11 @@ export default function PlansSelectionScreen() {
               style={[
                 styles.planCard,
                 isSelected && styles.planCardSelected,
+                isDisabled && styles.planCardDisabled,
               ]}
               onPress={() => handlePlanSelect(plan.id)}
-              activeOpacity={0.7}
+              activeOpacity={isDisabled ? 1 : 0.7}
+              disabled={isDisabled}
             >
               <View style={styles.planContent}>
                 {/* Plan Header */}
@@ -251,14 +316,21 @@ export default function PlansSelectionScreen() {
                     )}
                   </View>
 
-                  {/* Selection Indicator */}
-                  {isSelected && (
+                  {/* Selection Indicator or Disabled Badge */}
+                  {isDisabled ? (
+                    <View style={styles.disabledBadge}>
+                      <Icon name="lock" size={16} color="#999999" />
+                      <Text variant="bodySmall" style={styles.disabledBadgeText}>
+                        Already Enrolled
+                      </Text>
+                    </View>
+                  ) : isSelected ? (
                     <View style={styles.selectedIndicator}>
                       <View style={styles.checkmarkCircle}>
                         <Icon name="check" size={20} color="#ffffff" />
                       </View>
                     </View>
-                  )}
+                  ) : null}
                 </View>
 
                 {/* Plan Price */}
@@ -277,6 +349,15 @@ export default function PlansSelectionScreen() {
                     </Text>
                   </View>
                 </View>
+                
+                {/* Disabled Overlay for Free Plans */}
+                {isDisabled && (
+                  <View style={styles.disabledOverlay}>
+                    <Text variant="bodySmall" style={styles.disabledOverlayText}>
+                      You've already enrolled in: {existingFreePlan?.planTitle || 'Free Plan'}
+                    </Text>
+                  </View>
+                )}
               </View>
             </TouchableOpacity>
           );
@@ -488,6 +569,35 @@ const styles = StyleSheet.create({
   retryButton: {
     marginTop: 16,
     backgroundColor: '#f9cb00',
+  },
+  planCardDisabled: {
+    opacity: 0.6,
+    borderColor: '#cccccc',
+  },
+  disabledBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 12,
+  },
+  disabledBadgeText: {
+    marginLeft: 4,
+    color: '#999999',
+    fontSize: 12,
+  },
+  disabledOverlay: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  disabledOverlayText: {
+    color: '#999999',
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
 });
 

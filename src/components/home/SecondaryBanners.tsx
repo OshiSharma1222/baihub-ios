@@ -14,7 +14,10 @@ export const SecondaryBanners: React.FC<SecondaryBannersProps> = ({
   banners,
   onBannerPress,
 }) => {
-  const activeBanners = banners.filter((banner) => banner.isActive);
+  // Filter active banners and sort by order property
+  const activeBanners = banners
+    .filter((banner) => banner.isActive)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   if (!activeBanners || activeBanners.length === 0) {
     return null;
@@ -27,13 +30,15 @@ export const SecondaryBanners: React.FC<SecondaryBannersProps> = ({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {activeBanners.map((banner) => (
-          <TouchableOpacity
-            key={banner.id}
-            style={styles.banner}
-            onPress={() => onBannerPress?.(banner)}
-            activeOpacity={0.9}
-          >
+        {activeBanners.map((banner, index) => {
+          const isLast = index === activeBanners.length - 1;
+          return (
+            <TouchableOpacity
+              key={banner.id}
+              style={[styles.banner, isLast && styles.lastBanner]}
+              onPress={() => onBannerPress?.(banner)}
+              activeOpacity={0.9}
+            >
             <Image
               source={{ uri: banner.imageUrl }}
               style={styles.image}
@@ -55,7 +60,8 @@ export const SecondaryBanners: React.FC<SecondaryBannersProps> = ({
               </View>
             </View>
           </TouchableOpacity>
-        ))}
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -80,6 +86,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  lastBanner: {
+    marginRight: 0, // Remove margin from last banner
   },
   image: {
     width: '100%',

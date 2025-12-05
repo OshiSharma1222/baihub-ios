@@ -159,13 +159,48 @@ class ApiClient {
           }
         }
 
+        // Enhanced network error detection
+        const isNetworkError = 
+          !error.response && (
+            error.code === 'ECONNREFUSED' ||
+            error.code === 'ENOTFOUND' ||
+            error.code === 'ETIMEDOUT' ||
+            error.code === 'ERR_NETWORK' ||
+            error.message?.includes('Network Error') ||
+            error.message?.includes('timeout') ||
+            error.message?.includes('Failed to fetch')
+          );
+
+        if (isNetworkError) {
+          logger.error('Network Error Detected', {
+            url: error.config?.url,
+            baseURL: ENV.API_BASE_URL,
+            method: error.config?.method,
+            code: error.code,
+            message: error.message,
+          });
+          
+          const apiError: ApiError = {
+            message: `Network error: Unable to connect to ${ENV.API_BASE_URL}. Please check your internet connection.`,
+            statusCode: 0,
+            errors: null,
+            isNetworkError: true,
+          };
+          
+          return Promise.reject(apiError);
+        }
+
         const apiError: ApiError = {
           message: error.response?.data?.message || error.message || 'An error occurred',
           statusCode: error.response?.status,
           errors: error.response?.data?.errors,
         };
 
-        logger.error(`API Error: ${error.config?.method?.toUpperCase()} ${error.config?.url}`, apiError);
+        logger.error(`API Error: ${error.config?.method?.toUpperCase()} ${error.config?.url}`, {
+          ...apiError,
+          baseURL: ENV.API_BASE_URL,
+          fullURL: `${ENV.API_BASE_URL}${error.config?.url}`,
+        });
 
         return Promise.reject(apiError);
       }
