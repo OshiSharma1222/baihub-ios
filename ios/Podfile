@@ -39,9 +39,6 @@ target 'Baihub' do
 
   config = use_native_modules!(config_command)
 
-  # Use static frameworks to fix "no such module Expo" error
-  use_frameworks! :linkage => :static
-
   use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
   use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
 
@@ -60,23 +57,18 @@ target 'Baihub' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
-    # Fix for Firebase non-modular header includes
-    installer.pods_project.targets.each do |target|
-      target.build_configurations.each do |config|
-        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-      end
-    end
-    # Fix for Apple Silicon - exclude x86_64 architecture
+    # Fix for Apple Silicon - exclude x86_64 architecture for simulator
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'x86_64'
         config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
       end
     end
-    
-    # Ensure all targets build for arm64 only on simulator
-    installer.pods_project.build_configurations.each do |config|
-      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'x86_64'
+    # Also fix for Firebase non-modular header includes
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      end
     end
   end
 end
