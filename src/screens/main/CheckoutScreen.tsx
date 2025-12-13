@@ -156,32 +156,37 @@ export default function CheckoutScreen() {
       const today = new Date();
       const slotDate = today.toISOString().split('T')[0]; // YYYY-MM-DD format
       
-      // Build time slots array from selected slots (empty for 24-hour services)
+      // Build time slots array from selected slots (only include if slots exist)
       const orderTimeSlots = timeSlots.length > 0 
         ? timeSlots.map((slot) => ({
             timeSlotId: slot.id, // Time slot ID from route params (now from backend)
             slotDate: slotDate, // Today's date (can be updated to allow date selection)
           }))
-        : []; // Empty array for 24-hour services that don't require slot selection
+        : undefined; // Omit for 24-hour services that don't require slot selection
       
       // Build notes with all selected time slots
       const timeSlotsText = timeSlots.length > 0 
         ? timeSlots.map(s => s.displayText).join(', ')
         : '24-hour service (no time slots)';
       
-      const orderData = {
+      // Build order data - conditionally include timeSlots and slots only if they exist
+      const orderData: any = {
         planId: plan.id,
         addressId: address.id,
         categoryId: categoryId,
         areaId: areaId, // Include areaId from route params
         serviceId: serviceId, // Include serviceId if provided
-        timeSlots: orderTimeSlots,
-        slots: timeSlots.length, // Number of slots selected
         meta: {
           paymentMethod: 'card',
           notes: `Service: ${categoryName}, Area: ${areaName}, Time slots: ${timeSlotsText}`,
         },
       };
+      
+      // Only include timeSlots and slots if there are actual slots (not 24-hour service)
+      if (timeSlots.length > 0) {
+        orderData.timeSlots = orderTimeSlots;
+        orderData.slots = timeSlots.length; // Number of slots selected
+      }
 
       const response = await homeApi.createOrder(orderData);
       if (response.data) {
@@ -204,11 +209,16 @@ export default function CheckoutScreen() {
         throw new Error('Order creation failed');
       }
     } catch (err: any) {
-      logger.error('Failed to create order', err);
+      logger.error('Failed to create order', {
+        error: err,
+        response: err.response?.data,
+        status: err.response?.status,
+      });
       
       // Handle duplicate free plan enrollment error
       if (err.response?.status === 400) {
         const errorMessage = err.response?.data?.message || err.message || '';
+        const errorData = err.response?.data || {};
         
         if (errorMessage.includes('already enrolled in a free plan')) {
           // Extract plan name from error message if available
@@ -225,6 +235,21 @@ export default function CheckoutScreen() {
           setTimeout(() => {
             navigation.navigate('Orders');
           }, 2000);
+          return;
+        }
+        
+        // Handle validation errors (e.g., missing time slots when required)
+        if (errorMessage.includes('time slot') || errorMessage.includes('timeSlot') || errorData.timeSlots) {
+          toast.error(
+            errorMessage || 'Time slot validation failed. Please try again.',
+            'Validation Error'
+          );
+          return;
+        }
+        
+        // Show backend error message if available
+        if (errorMessage) {
+          toast.error(errorMessage, 'Order Creation Failed');
           return;
         }
       }
