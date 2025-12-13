@@ -4,7 +4,7 @@ module.exports = {
   expo: {
     name: 'Baihub',
     slug: 'baihub-mobile',
-    version: '1.0.2',
+    version: '1.0.3',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -17,7 +17,7 @@ module.exports = {
     ios: {
       bundleIdentifier: 'com.baihub.app',
       supportsTablet: true,
-      buildNumber: '2',
+      buildNumber: '3',
       infoPlist: {
         NSLocationWhenInUseUsageDescription: 'This app needs access to your location to automatically detect your city. You can enter your city manually if you prefer not to share your location.',
         NSPhotoLibraryUsageDescription: 'This app may need access to your photo library to allow you to upload profile pictures or images for service bookings. This access is optional and you can use the app without granting photo library access.',
@@ -29,7 +29,7 @@ module.exports = {
       },
     },
     android: {
-      versionCode: 3,
+      versionCode: 4,
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#ffcc00', // Matches the yellow background in your image
