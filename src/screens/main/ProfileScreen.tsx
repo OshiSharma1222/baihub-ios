@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { View, StyleSheet, ScrollView, Linking, Alert } from 'react-native';
-import { Text, Card, Avatar, Button, Divider } from 'react-native-paper';
+import { Text, Card, Avatar, List, Divider } from 'react-native-paper';
 import { useAuthStore } from '../../store';
 import { useNavigation } from '@react-navigation/native';
 
@@ -67,71 +67,53 @@ export default function ProfileScreen() {
 
       <Card style={styles.card}>
         <Card.Content style={styles.cardContent}>
-          <Button
-            mode="text"
+          <List.Item
+            title="My Orders"
+            left={(props) => <List.Icon {...props} icon="clipboard-list" color="#000000" />}
             onPress={() => navigation.navigate('Orders' as never)}
-            icon="clipboard-list"
-            style={styles.menuItem}
-            contentStyle={styles.buttonContent}
-            textColor="#000000"
-          >
-            My Orders
-          </Button>
+            titleStyle={styles.menuItemTitle}
+            style={styles.listItem}
+          />
           <Divider />
-          <Button
-            mode="text"
+          <List.Item
+            title="Help & Support"
+            left={(props) => <List.Icon {...props} icon="help-circle" color="#000000" />}
             onPress={handleHelpSupport}
-            icon="help-circle"
-            style={styles.menuItem}
-            contentStyle={styles.buttonContent}
-            textColor="#000000"
-          >
-            Help & Support
-          </Button>
+            titleStyle={styles.menuItemTitle}
+            style={styles.listItem}
+          />
           <Divider />
-          <Button
-            mode="text"
+          <List.Item
+            title="About"
+            left={(props) => <List.Icon {...props} icon="information" color="#000000" />}
             onPress={() => openUrl(ABOUT_URL)}
-            icon="information"
-            style={styles.menuItem}
-            contentStyle={styles.buttonContent}
-            textColor="#000000"
-          >
-            About
-          </Button>
+            titleStyle={styles.menuItemTitle}
+            style={styles.listItem}
+          />
           <Divider />
-          <Button
-            mode="text"
+          <List.Item
+            title="Terms & Conditions"
+            left={(props) => <List.Icon {...props} icon="file-document-outline" color="#000000" />}
             onPress={() => openUrl(TERMS_URL)}
-            icon="file-document-outline"
-            style={styles.menuItem}
-            contentStyle={styles.buttonContent}
-            textColor="#000000"
-          >
-            Terms & Conditions
-          </Button>
+            titleStyle={styles.menuItemTitle}
+            style={styles.listItem}
+          />
           <Divider />
-          <Button
-            mode="text"
+          <List.Item
+            title="Privacy Policy"
+            left={(props) => <List.Icon {...props} icon="shield-lock-outline" color="#000000" />}
             onPress={() => openUrl(PRIVACY_URL)}
-            icon="shield-lock-outline"
-            style={styles.menuItem}
-            contentStyle={styles.buttonContent}
-            textColor="#000000"
-          >
-            Privacy Policy
-          </Button>
+            titleStyle={styles.menuItemTitle}
+            style={styles.listItem}
+          />
           <Divider />
-          <Button
-            mode="text"
+          <List.Item
+            title="Logout"
+            left={(props) => <List.Icon {...props} icon="logout" color="#000000" />}
             onPress={logout}
-            icon="logout"
-            style={styles.menuItem}
-            contentStyle={styles.buttonContent}
-            textColor="#000000"
-          >
-            Logout
-          </Button>
+            titleStyle={styles.menuItemTitle}
+            style={styles.listItem}
+          />
         </Card.Content>
       </Card>
     </ScrollView>
@@ -166,19 +148,16 @@ const styles = StyleSheet.create({
   cardContent: {
     padding: 0,
   },
-  menuItem: {
-    width: '100%',
-    alignSelf: 'stretch',
-    justifyContent: 'flex-start',
+  listItem: {
     paddingVertical: 12,
-    alignItems: "flex-start",
-    marginHorizontal: 0,
-    marginVertical: 0,
-  },
-  buttonContent: {
-    width: '100%',
-    justifyContent: 'flex-start',
     paddingHorizontal: 16,
+    marginHorizontal: 0,
+    minHeight: 48,
+  },
+  menuItemTitle: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '400',
   },
 });
 
