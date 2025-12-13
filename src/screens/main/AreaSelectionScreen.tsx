@@ -151,16 +151,44 @@ export default function AreaSelectionScreen() {
         service_name: categoryName,
       });
       
-      // If categoryId is already provided (from home page), skip ServicesListing
-      // and go directly to TimeSlotSelection
+      // If categoryId is already provided (from home page), check if slot selection is required
       if (categoryId) {
-        navigation.navigate('TimeSlotSelection', {
-          areaId: selectedArea,
-          categoryId,
-          areaName: selectedAreaData.name,
-          categoryName,
-          serviceId: route.params.serviceId, // Pass serviceId if available
-        });
+        // Fetch category data to check requiresSlotSelection
+        try {
+          const categoriesResponse = await homeApi.getCategories({ areaId: selectedArea });
+          const categoryData = categoriesResponse.data?.find(cat => cat.id === categoryId);
+          const requiresSlotSelection = categoryData?.requiresSlotSelection ?? true;
+          
+          if (!requiresSlotSelection) {
+            // Skip slot selection for 24-hour services
+            navigation.navigate('PlansSelection', {
+              areaId: selectedArea,
+              categoryId,
+              areaName: selectedAreaData.name,
+              categoryName,
+              serviceId: route.params.serviceId,
+              timeSlots: [], // Empty time slots for 24-hour services
+            });
+          } else {
+            navigation.navigate('TimeSlotSelection', {
+              areaId: selectedArea,
+              categoryId,
+              areaName: selectedAreaData.name,
+              categoryName,
+              serviceId: route.params.serviceId, // Pass serviceId if available
+            });
+          }
+        } catch (error) {
+          // If fetching category fails, default to requiring slot selection
+          logger.error('Failed to fetch category data', error);
+          navigation.navigate('TimeSlotSelection', {
+            areaId: selectedArea,
+            categoryId,
+            areaName: selectedAreaData.name,
+            categoryName,
+            serviceId: route.params.serviceId,
+          });
+        }
       } else {
         // If no categoryId (from hero banner), navigate to services listing first
         navigation.navigate('ServicesListing', {

@@ -66,12 +66,13 @@ export default function ProfileScreen() {
       </Card>
 
       <Card style={styles.card}>
-        <Card.Content>
+        <Card.Content style={styles.cardContent}>
           <Button
             mode="text"
             onPress={() => navigation.navigate('Orders' as never)}
             icon="clipboard-list"
             style={styles.menuItem}
+            contentStyle={styles.buttonContent}
             textColor="#000000"
           >
             My Orders
@@ -82,6 +83,7 @@ export default function ProfileScreen() {
             onPress={handleHelpSupport}
             icon="help-circle"
             style={styles.menuItem}
+            contentStyle={styles.buttonContent}
             textColor="#000000"
           >
             Help & Support
@@ -92,6 +94,7 @@ export default function ProfileScreen() {
             onPress={() => openUrl(ABOUT_URL)}
             icon="information"
             style={styles.menuItem}
+            contentStyle={styles.buttonContent}
             textColor="#000000"
           >
             About
@@ -102,6 +105,7 @@ export default function ProfileScreen() {
             onPress={() => openUrl(TERMS_URL)}
             icon="file-document-outline"
             style={styles.menuItem}
+            contentStyle={styles.buttonContent}
             textColor="#000000"
           >
             Terms & Conditions
@@ -112,6 +116,7 @@ export default function ProfileScreen() {
             onPress={() => openUrl(PRIVACY_URL)}
             icon="shield-lock-outline"
             style={styles.menuItem}
+            contentStyle={styles.buttonContent}
             textColor="#000000"
           >
             Privacy Policy
@@ -122,6 +127,7 @@ export default function ProfileScreen() {
             onPress={logout}
             icon="logout"
             style={styles.menuItem}
+            contentStyle={styles.buttonContent}
             textColor="#000000"
           >
             Logout
@@ -157,10 +163,22 @@ const styles = StyleSheet.create({
   email: {
     opacity: 0.7,
   },
+  cardContent: {
+    padding: 0,
+  },
   menuItem: {
+    width: '100%',
+    alignSelf: 'stretch',
     justifyContent: 'flex-start',
     paddingVertical: 12,
     alignItems: "flex-start",
+    marginHorizontal: 0,
+    marginVertical: 0,
+  },
+  buttonContent: {
+    width: '100%',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 16,
   },
 });
 

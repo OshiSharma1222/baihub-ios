@@ -35,8 +35,6 @@ export default function UserDetailsScreen({ navigation }: any) {
   const [name, setName] = useState('');
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [city, setCity] = useState('');
-  const [language, setLanguage] = useState('');
-  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
   const [errors, setErrors] = useState<{
@@ -59,10 +57,7 @@ export default function UserDetailsScreen({ navigation }: any) {
       setName(user.firstName);
     }
     
-    // Pre-fill language if available
-    if (user?.language) {
-      setLanguage(user.language);
-    }
+
     
     // Request location permission
     requestLocationPermission();
@@ -124,9 +119,9 @@ export default function UserDetailsScreen({ navigation }: any) {
       newErrors.city = 'City is required';
     }
 
-    if (!language) {
-      newErrors.language = 'Language is required';
-    }
+    // if (!language) {
+    //   newErrors.language = 'Language is required';
+    // }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -143,7 +138,7 @@ export default function UserDetailsScreen({ navigation }: any) {
       const updateData: any = {
         firstName: name,
         city: city.trim(),
-        language: language,
+        // language: language,
       };
 
       if (isEmail) {
@@ -271,57 +266,6 @@ export default function UserDetailsScreen({ navigation }: any) {
             />
             {errors.city && (
               <RNText style={styles.errorText}>{errors.city}</RNText>
-            )}
-          </View>
-
-          {/* Language Field */}
-          <View style={styles.inputSection}>
-            <RNText style={styles.inputLabel}>Language</RNText>
-            <TouchableOpacity
-              onPress={() => setShowLanguagePicker(!showLanguagePicker)}
-              style={styles.languageSelector}
-            >
-              <TextInput
-                mode="outlined"
-                value={language ? LANGUAGES.find((l) => l.value === language)?.label || language : ''}
-                placeholder="Select language"
-                style={styles.input}
-                outlineStyle={styles.inputOutline}
-                error={!!errors.language}
-                editable={false}
-                left={<TextInput.Icon icon="translate" />}
-                right={<TextInput.Icon icon="chevron-down" />}
-              />
-            </TouchableOpacity>
-            {showLanguagePicker && (
-              <View style={styles.languagePicker}>
-                {LANGUAGES.map((lang) => (
-                  <TouchableOpacity
-                    key={lang.value}
-                    style={[
-                      styles.languageOption,
-                      language === lang.value && styles.languageOptionSelected,
-                    ]}
-                    onPress={() => {
-                      setLanguage(lang.value);
-                      setShowLanguagePicker(false);
-                      setErrors({ ...errors, language: undefined });
-                    }}
-                  >
-                    <RNText
-                      style={[
-                        styles.languageOptionText,
-                        language === lang.value && styles.languageOptionTextSelected,
-                      ]}
-                    >
-                      {lang.label}
-                    </RNText>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-            {errors.language && (
-              <RNText style={styles.errorText}>{errors.language}</RNText>
             )}
           </View>
 

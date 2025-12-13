@@ -167,6 +167,9 @@ export interface SearchAreasParams {
 
 export interface GetPlansParams {
   includeInactive?: boolean;
+  areaId?: string; // Area ID for area-specific plans
+  categoryId?: string; // Category/Service ID for service-specific plans
+  // userId is automatically extracted from JWT token, no need to pass
 }
 
 export interface CreateOrderDto {
@@ -202,7 +205,11 @@ export interface Order {
   categoryId: string;
   serviceId?: string | null;
   status: string;
-  amount?: number;
+  amount?: number; // DEPRECATED: Use totalAmount. Kept for backward compatibility
+  totalAmount?: number; // Total order amount
+  bookingAmount?: number; // Amount collected at booking
+  remainingAmount?: number; // Remaining amount to be paid later
+  startDate?: string; // Start date of the order
   slots?: number;
   meta?: {
     notes?: string;
@@ -242,8 +249,20 @@ export const homeApi = {
   getAreasByCategory: (categoryId: string): Promise<ApiResponse<Area[]>> =>
     apiClient.get(`${API_ENDPOINTS.AREAS.BY_CATEGORY}/${categoryId}`),
 
-  getPlans: (params?: GetPlansParams): Promise<ApiResponse<Plan[]>> =>
-    apiClient.get(API_ENDPOINTS.PLANS, { params }),
+  getPlans: (params?: GetPlansParams): Promise<ApiResponse<Plan[]>> => {
+    // userId is automatically extracted from token, so we only pass areaId and categoryId
+    const queryParams: any = {};
+    if (params?.includeInactive !== undefined) {
+      queryParams.includeInactive = params.includeInactive;
+    }
+    if (params?.areaId) {
+      queryParams.areaId = params.areaId;
+    }
+    if (params?.categoryId) {
+      queryParams.categoryId = params.categoryId;
+    }
+    return apiClient.get(API_ENDPOINTS.PLANS, { params: queryParams });
+  },
 
   getTimeSlots: (): Promise<ApiResponse<TimeSlot[]>> =>
     apiClient.get(API_ENDPOINTS.TIME_SLOTS),

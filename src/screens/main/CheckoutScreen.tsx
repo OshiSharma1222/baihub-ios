@@ -96,8 +96,8 @@ export default function CheckoutScreen() {
           plan_total: plan.price.total,
           plan_title: plan.title,
           plan_description: plan.description,
-          selected_slots_ids: timeSlots.map(s => s.id),
-          selected_slots_titles: timeSlots.map(s => s.displayText),
+          selected_slots_ids: timeSlots.length > 0 ? timeSlots.map(s => s.id) : [],
+          selected_slots_titles: timeSlots.length > 0 ? timeSlots.map(s => s.displayText) : [],
           order_total: razorpayOrder.amount / 100, // Convert from paise to rupees
           order_id: order.id,
           user_address: savedAddress ? `${savedAddress.addressLine1}, ${savedAddress.city}` : undefined,
@@ -156,14 +156,18 @@ export default function CheckoutScreen() {
       const today = new Date();
       const slotDate = today.toISOString().split('T')[0]; // YYYY-MM-DD format
       
-      // Build time slots array from selected slots
-      const orderTimeSlots = timeSlots.map((slot) => ({
-        timeSlotId: slot.id, // Time slot ID from route params (now from backend)
-        slotDate: slotDate, // Today's date (can be updated to allow date selection)
-      }));
+      // Build time slots array from selected slots (empty for 24-hour services)
+      const orderTimeSlots = timeSlots.length > 0 
+        ? timeSlots.map((slot) => ({
+            timeSlotId: slot.id, // Time slot ID from route params (now from backend)
+            slotDate: slotDate, // Today's date (can be updated to allow date selection)
+          }))
+        : []; // Empty array for 24-hour services that don't require slot selection
       
       // Build notes with all selected time slots
-      const timeSlotsText = timeSlots.map(s => s.displayText).join(', ');
+      const timeSlotsText = timeSlots.length > 0 
+        ? timeSlots.map(s => s.displayText).join(', ')
+        : '24-hour service (no time slots)';
       
       const orderData = {
         planId: plan.id,
@@ -246,8 +250,8 @@ export default function CheckoutScreen() {
       plan_total: plan.price.total,
       plan_title: plan.title,
       plan_description: plan.description,
-      selected_slots_ids: timeSlots.map(s => s.id),
-      selected_slots_titles: timeSlots.map(s => s.displayText),
+      selected_slots_ids: timeSlots.length > 0 ? timeSlots.map(s => s.id) : [],
+      selected_slots_titles: timeSlots.length > 0 ? timeSlots.map(s => s.displayText) : [],
     });
     
     if (savedAddress) {
@@ -277,6 +281,17 @@ export default function CheckoutScreen() {
   const originalPrice = plan.price.amount;
   const discount = plan.price.discount;
   const total = plan.price.total;
+  
+  // Calculate booking amount for postpaid plans
+  const bookingAmount = plan.isPostpaid
+    ? plan.bookingAmount !== null && plan.bookingAmount !== undefined
+      ? plan.bookingAmount
+      : plan.bookingPercentage !== null && plan.bookingPercentage !== undefined
+      ? (total * plan.bookingPercentage) / 100
+      : total
+    : total;
+  
+  const remainingAmount = plan.isPostpaid ? total - bookingAmount : 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -310,7 +325,11 @@ export default function CheckoutScreen() {
               {categoryName || 'Service'}
             </Text>
             <Text variant="bodyMedium" style={styles.infoSubtext}>
-              {areaName} • {timeSlots.length === 1 ? timeSlots[0].displayText : `${timeSlots.length} slots`}
+              {areaName} • {timeSlots.length === 0 
+                ? '24-hour service' 
+                : timeSlots.length === 1 
+                  ? timeSlots[0].displayText 
+                  : `${timeSlots.length} slots`}
             </Text>
           </View>
         </View>
@@ -358,12 +377,32 @@ export default function CheckoutScreen() {
             )}
             <View style={[styles.priceRow, styles.totalRow]}>
               <Text variant="titleLarge" style={styles.totalLabel}>
-                Total
+                {plan.isPostpaid ? 'Total Amount' : 'Total'}
               </Text>
               <Text variant="titleLarge" style={styles.totalValue}>
                 {formatPrice(total)}
               </Text>
             </View>
+            {plan.isPostpaid && bookingAmount < total && (
+              <>
+                <View style={styles.priceRow}>
+                  <Text variant="bodyMedium" style={styles.priceLabel}>
+                    Booking Amount (Pay Now)
+                  </Text>
+                  <Text variant="bodyLarge" style={styles.bookingValue}>
+                    {formatPrice(bookingAmount)}
+                  </Text>
+                </View>
+                <View style={styles.priceRow}>
+                  <Text variant="bodySmall" style={styles.priceLabel}>
+                    Remaining Amount (Pay Later)
+                  </Text>
+                  <Text variant="bodySmall" style={styles.remainingValue}>
+                    {formatPrice(remainingAmount)}
+                  </Text>
+                </View>
+              </>
+            )}
           </View>
         </View>
 
@@ -521,6 +560,13 @@ const styles = StyleSheet.create({
   totalValue: {
     color: '#000000',
     fontWeight: 'bold',
+  },
+  bookingValue: {
+    color: '#2196F3',
+    fontWeight: 'bold',
+  },
+  remainingValue: {
+    color: '#666666',
   },
   addressText: {
     color: '#000000',

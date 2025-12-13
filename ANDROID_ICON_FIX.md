@@ -83,3 +83,5 @@ android: {
 
 The cropping happens because Android adaptive icons are designed to be masked/cropped by different launchers. The solution is to ensure your icon content fits within the safe zone, not to remove the adaptive icon.
 
+
+

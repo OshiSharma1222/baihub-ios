@@ -68,8 +68,12 @@ export default function PlansSelectionScreen() {
       // Check free plan status first
       const freePlanStatus = await checkFreePlanStatus();
       
-      // Fetch all plans
-      const response = await homeApi.getPlans({ includeInactive: false });
+      // Fetch plans with areaId and categoryId for custom plan matching
+      const response = await homeApi.getPlans({ 
+        includeInactive: false,
+        areaId: areaId,
+        categoryId: categoryId,
+      });
       if (response.data) {
         // Store all plans
         setAllPlans(response.data);
@@ -103,7 +107,7 @@ export default function PlansSelectionScreen() {
     } finally {
       setLoading(false);
     }
-  }, [checkFreePlanStatus]);
+  }, [checkFreePlanStatus, areaId, categoryId]);
 
   useEffect(() => {
     fetchPlans();
@@ -162,8 +166,8 @@ export default function PlansSelectionScreen() {
         plan_total: selectedPlanData.price.total,
         plan_title: selectedPlanData.title,
         plan_description: selectedPlanData.description,
-        selected_slots_ids: timeSlots.map(s => s.id),
-        selected_slots_titles: timeSlots.map(s => s.displayText),
+        selected_slots_ids: timeSlots.length > 0 ? timeSlots.map(s => s.id) : [],
+        selected_slots_titles: timeSlots.length > 0 ? timeSlots.map(s => s.displayText) : [],
       });
       
       logger.info('Plan selected', {
@@ -195,7 +199,7 @@ export default function PlansSelectionScreen() {
     ? timeSlots.length === 1 
       ? timeSlots[0].displayText 
       : `${timeSlots.length} slots selected`
-    : 'Time slots';
+    : '24-hour service'; // For services that don't require slot selection
   const summaryText = [
     categoryName || 'Service',
     areaName || 'Area',
@@ -336,17 +340,39 @@ export default function PlansSelectionScreen() {
                 {/* Plan Price */}
                 <View style={styles.priceContainer}>
                   <View style={styles.priceRow}>
-                    <Text variant="titleMedium" style={styles.price}>
-                      {formatPrice(plan.price.total)}
-                    </Text>
-                    {plan.price.discount > 0 && (
-                      <Text variant="bodySmall" style={styles.originalPrice}>
-                        {formatPrice(plan.price.amount)}
-                      </Text>
+                    {plan.isPostpaid && (plan.bookingAmount !== null && plan.bookingAmount !== undefined || plan.bookingPercentage !== null && plan.bookingPercentage !== undefined) ? (
+                      <>
+                        <Text variant="titleMedium" style={styles.price}>
+                          {formatPrice(
+                            plan.bookingAmount !== null && plan.bookingAmount !== undefined
+                              ? plan.bookingAmount
+                              : (plan.price.total * (plan.bookingPercentage || 0)) / 100
+                          )}
+                        </Text>
+                        <Text variant="bodySmall" style={styles.bookingLabel}>
+                          {' '}booking
+                        </Text>
+                        <Text variant="bodySmall" style={styles.totalAmount}>
+                          {' '}(Total: {formatPrice(plan.price.total)})
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Text variant="titleMedium" style={styles.price}>
+                          {formatPrice(plan.price.total)}
+                        </Text>
+                        {plan.price.discount > 0 && (
+                          <Text variant="bodySmall" style={styles.originalPrice}>
+                            {formatPrice(plan.price.amount)}
+                          </Text>
+                        )}
+                        {plan.duration && (
+                          <Text variant="bodySmall" style={styles.duration}>
+                            {' '}/ {plan.duration} {plan.duration === 1 ? 'day' : 'days'}
+                          </Text>
+                        )}
+                      </>
                     )}
-                    <Text variant="bodySmall" style={styles.duration}>
-                      / month
-                    </Text>
                   </View>
                 </View>
                 
@@ -513,6 +539,14 @@ const styles = StyleSheet.create({
   },
   duration: {
     color: '#666666',
+  },
+  bookingLabel: {
+    color: '#2196F3',
+    fontWeight: '600',
+  },
+  totalAmount: {
+    color: '#666666',
+    fontSize: 12,
   },
   emptyContainer: {
     flex: 1,

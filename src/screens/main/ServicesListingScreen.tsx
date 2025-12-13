@@ -112,18 +112,35 @@ export default function ServicesListingScreen() {
       });
     }
     // Navigate to time slot selection screen
+    const selectedServiceData = services.find(s => s.id === selectedService);
+    const requiresSlotSelection = selectedServiceData?.requiresSlotSelection ?? true;
+    
     logger.info('Continue with service', { 
       serviceId: selectedService,
       areaId,
-      categoryId: selectedService, // Using selectedService as categoryId for now
+      categoryId: selectedService,
+      requiresSlotSelection,
     });
-    navigation.navigate('TimeSlotSelection', {
-      areaId,
-      categoryId: selectedService, // The selected service is the category
-      areaName,
-      categoryName: services.find(s => s.id === selectedService)?.name,
-      serviceId: selectedService, // Pass serviceId
-    });
+
+    // If service doesn't require slot selection (24-hour service), skip to plans selection
+    if (!requiresSlotSelection) {
+      navigation.navigate('PlansSelection', {
+        areaId,
+        categoryId: selectedService,
+        areaName,
+        categoryName: selectedServiceData?.name,
+        serviceId: selectedService,
+        timeSlots: [], // Empty time slots for 24-hour services
+      });
+    } else {
+      navigation.navigate('TimeSlotSelection', {
+        areaId,
+        categoryId: selectedService, // The selected service is the category
+        areaName,
+        categoryName: selectedServiceData?.name,
+        serviceId: selectedService, // Pass serviceId
+      });
+    }
   }, [selectedService, areaId, areaName, services, navigation]);
 
   const handleRetry = useCallback(() => {

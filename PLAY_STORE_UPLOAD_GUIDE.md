@@ -187,3 +187,5 @@ eas submit --platform android --profile production
 
 **Recommendation**: Start with **Method 1 (Manual Upload)** for your first release to familiarize yourself with the process. Use **Method 2 (EAS Submit)** for future automated releases.
 
+
+

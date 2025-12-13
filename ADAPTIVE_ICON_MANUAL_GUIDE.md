@@ -82,3 +82,5 @@ After updating the icon:
 2. Build and test on emulator/device
 3. Check that the icon displays correctly without cropping
 
+
+

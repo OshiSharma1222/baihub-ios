@@ -153,3 +153,5 @@ The preview only updates after you complete **all** steps, not just step 1.
 
 **Click "Next"** and go through each data type category, declaring what you collect. The preview will update once you complete all sections!
 
+
+

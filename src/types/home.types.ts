@@ -26,6 +26,7 @@ export interface Category {
   image?: string;
   displayImage?: DisplayImage;
   order: number;
+  requiresSlotSelection?: boolean; // Whether this service requires time slot selection (false for 24-hour services)
 }
 
 export interface Review {
@@ -110,6 +111,13 @@ export interface Plan {
     discount: number;
   };
   isActive: boolean;
+  duration?: number; // Duration in days
+  isPostpaid?: boolean; // Whether plan is postpaid
+  bookingAmount?: number; // Fixed amount required at booking
+  bookingPercentage?: number; // Percentage of total amount required at booking
+  userId?: string; // User-specific plan
+  areaId?: string; // Area-specific plan
+  categoryId?: string; // Service-specific plan
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string | null;
