@@ -5,7 +5,6 @@ import { View, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-nat
 import { Text } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Category } from '../../types/home.types';
-import { baihubAnalytics } from '../../services/baihub-analytics.service';
 
 interface CategoryTilesProps {
   categories: Category[];
@@ -20,8 +19,30 @@ export const CategoryTiles: React.FC<CategoryTilesProps> = ({
     return null;
   }
 
-  console.log('categories', categories);
+  // Helper function to check if icon is a URL
+  const isIconUrl = (icon: string | undefined): boolean => {
+    if (!icon) return false;
+    return icon.startsWith('http://') || icon.startsWith('https://');
+  };
 
+  // Helper function to render icon (URL or icon name)
+  const renderIcon = (icon: string | undefined, size: number = 54) => {
+    if (!icon) {
+      return <Icon name="folder" size={size} color="#f9cb00" />;
+    }
+    
+    if (isIconUrl(icon)) {
+      return (
+        <Image
+          source={{ uri: icon }}
+          style={{ width: size, height: size }}
+          resizeMode="contain"
+        />
+      );
+    }
+    
+    return <Icon name={icon} size={size} color="#f9cb00" />;
+  };
 
   return (
     <View style={styles.container}>
@@ -37,23 +58,11 @@ export const CategoryTiles: React.FC<CategoryTilesProps> = ({
           <TouchableOpacity
             key={category.id}
             style={styles.tile}
-            onPress={async () => {
-              onCategoryPress?.(category);
-            }}
+            onPress={() => onCategoryPress?.(category)}
             activeOpacity={0.7}
           >
             <View style={styles.iconContainer}>
-              {category.displayImage?.imageUrl ? (
-                <Image 
-                  source={{ uri: category.displayImage.imageUrl }} 
-                  style={styles.image}
-                  resizeMode="cover"
-                />
-              ) : category.icon ? (
-                <Icon name={category.icon} size={32} color="#f9cb00" />
-              ) : (
-                <Icon name="folder" size={32} color="#f9cb00" />
-              )}
+              {renderIcon(category.icon)}
             </View>
             <Text variant="bodyMedium" style={styles.name} numberOfLines={2}>
               {category.name}
@@ -96,15 +105,9 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#f9cb0020',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
-    overflow: 'hidden',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
   },
   name: {
     textAlign: 'center',

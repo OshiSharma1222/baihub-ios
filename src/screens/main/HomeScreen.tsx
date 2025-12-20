@@ -1,6 +1,6 @@
 // Home screen with home page data
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -24,6 +24,7 @@ import {
 import { Category, Review, SecondaryBanner } from '../../types/home.types';
 import { baihubAnalytics } from '../../services/baihub-analytics.service';
 import { useEffect, useRef } from 'react';
+import { DescriptionModal } from '../../components/common';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -36,6 +37,8 @@ export default function HomeScreen() {
     testimonialLimit: 5,
   });
   const hasLoggedHomeVisit = useRef(false);
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
+  const [selectedCategoryForModal, setSelectedCategoryForModal] = useState<Category | null>(null);
 
   // Log home page visit on first mount
   useEffect(() => {
@@ -53,15 +56,46 @@ export default function HomeScreen() {
         service_name: category.name,
         screen: 'home',
       });
-      // Navigate to area selection for the selected category
-      const rootNavigator = navigation.getParent() || navigation;
-      (rootNavigator as any).navigate('AreaSelection', {
-        categoryId: category.id,
-        categoryName: category.name,
-      });
+      
+      // Show description modal if description exists
+      if (category.description && category.description.trim() !== '') {
+        setSelectedCategoryForModal(category);
+        setShowDescriptionModal(true);
+      } else {
+        // No description, navigate directly
+        const rootNavigator = navigation.getParent() || navigation;
+        (rootNavigator as any).navigate('AreaSelection', {
+          categoryId: category.id,
+          categoryName: category.name,
+        });
+      }
     },
     [navigation]
   );
+
+  const handleCategoryContinue = useCallback(() => {
+    if (!selectedCategoryForModal) {
+      return;
+    }
+    
+    // Close modal
+    setShowDescriptionModal(false);
+    
+    // Navigate to area selection for the selected category
+    const rootNavigator = navigation.getParent() || navigation;
+    (rootNavigator as any).navigate('AreaSelection', {
+      categoryId: selectedCategoryForModal.id,
+      categoryName: selectedCategoryForModal.name,
+    });
+    
+    // Clear selected category
+    setSelectedCategoryForModal(null);
+  }, [selectedCategoryForModal, navigation]);
+
+  const handleCloseModal = useCallback(() => {
+    setShowDescriptionModal(false);
+    setSelectedCategoryForModal(null);
+  }, []);
 
   const handleTestimonialPress = useCallback((review: Review) => {
     // Navigate to review details or service
@@ -203,14 +237,28 @@ export default function HomeScreen() {
       )}
 
       {/* Areas Served */}
-      {data.areasServed && data.areasServed.cities.length > 0 && (
+      {data.areasServed && 
+       data.areasServed.cities.filter(city => city.isVisibleOnHomePage !== false).length > 0 && (
         <AreasServed
-          areas={data.areasServed}
+          areas={{
+            ...data.areasServed,
+            cities: data.areasServed.cities.filter(city => city.isVisibleOnHomePage !== false),
+          }}
           onAreaPress={handleAreaPress}
           onViewAll={handleViewAllAreas}
         />
       )}
 
+      {/* Description Modal */}
+      {selectedCategoryForModal && (
+        <DescriptionModal
+          visible={showDescriptionModal}
+          title={selectedCategoryForModal.name}
+          description={selectedCategoryForModal.description}
+          onClose={handleCloseModal}
+          onContinue={handleCategoryContinue}
+        />
+      )}
     </ScrollView>
   );
 }

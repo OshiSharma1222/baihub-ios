@@ -54,8 +54,23 @@ export default function PlansSelectionScreen() {
         return response.data;
       }
     } catch (err: any) {
-      logger.error('Failed to check free plan status', err);
-      // Don't block plan loading if this fails
+      // Silently handle errors for free plan status check
+      // This is a non-critical feature - if it fails, we just assume no free plan
+      // Common reasons for failure:
+      // - Endpoint doesn't exist yet (404)
+      // - User not authenticated (401)
+      // - Network error
+      // All of these are acceptable - we'll just show all plans
+      const statusCode = err?.response?.status || err?.statusCode || err?.status;
+      
+      // Only log unexpected server errors (500, 502, etc.) for debugging
+      if (statusCode && statusCode >= 500) {
+        logger.error('Server error checking free plan status', {
+          statusCode,
+          message: err?.message || err?.response?.data?.message,
+        });
+      }
+      // For all other errors (404, 401, network), silently fail
     }
     return { hasFreePlan: false, freePlanOrder: null };
   }, []);
@@ -68,19 +83,43 @@ export default function PlansSelectionScreen() {
       // Check free plan status first
       const freePlanStatus = await checkFreePlanStatus();
       
-      // Fetch plans with areaId and categoryId for custom plan matching
-      const response = await homeApi.getPlans({ 
+      // Fetch plans with areaId and categoryId to get only mapped plans
+      // The API will automatically use ServiceAreaPlan mapping when both are provided
+      const response = await homeApi.getPlans({
         includeInactive: false,
         areaId: areaId,
         categoryId: categoryId,
       });
+      
       if (response.data) {
+        // Handle both Plan[] and PlanWithMetadata[] response formats
+        // If response includes metadata (when both areaId and categoryId are provided),
+        // extract the plan objects
+        let plansData: Plan[] = [];
+        if (Array.isArray(response.data) && response.data.length > 0) {
+          // Check if first item has 'plan' property (PlanWithMetadata format)
+          if ('plan' in response.data[0]) {
+            // Extract plans from PlanWithMetadata format
+            plansData = (response.data as any[]).map((item: any) => {
+              // Use effectivePrice if available, otherwise use plan.price
+              const effectivePrice = item.effectivePrice || item.plan.price;
+              return {
+                ...item.plan,
+                price: effectivePrice,
+              };
+            });
+          } else {
+            // Regular Plan[] format
+            plansData = response.data as Plan[];
+          }
+        }
+        
         // Store all plans
-        setAllPlans(response.data);
+        setAllPlans(plansData);
         
         if (freePlanStatus.hasFreePlan) {
           // User has a free plan - filter out free plans (plans with total <= 0)
-          const filteredPlans = response.data.filter(plan => {
+          const filteredPlans = plansData.filter(plan => {
             const planTotal = plan.price?.total || 0;
             return planTotal > 0; // Only show paid plans
           });
@@ -88,7 +127,7 @@ export default function PlansSelectionScreen() {
           // If filtered plans is empty, show free plans as disabled
           if (filteredPlans.length === 0) {
             // Show free plans but they will be disabled
-            const freePlans = response.data.filter(plan => {
+            const freePlans = plansData.filter(plan => {
               const planTotal = plan.price?.total || 0;
               return planTotal <= 0; // Show free plans
             });
@@ -98,7 +137,7 @@ export default function PlansSelectionScreen() {
           }
         } else {
           // User doesn't have a free plan - show all plans
-          setPlans(response.data);
+          setPlans(plansData);
         }
       }
     } catch (err: any) {
@@ -166,8 +205,8 @@ export default function PlansSelectionScreen() {
         plan_total: selectedPlanData.price.total,
         plan_title: selectedPlanData.title,
         plan_description: selectedPlanData.description,
-        selected_slots_ids: timeSlots.length > 0 ? timeSlots.map(s => s.id) : [],
-        selected_slots_titles: timeSlots.length > 0 ? timeSlots.map(s => s.displayText) : [],
+        selected_slots_ids: timeSlots.map(s => s.id),
+        selected_slots_titles: timeSlots.map(s => s.displayText),
       });
       
       logger.info('Plan selected', {
@@ -199,7 +238,7 @@ export default function PlansSelectionScreen() {
     ? timeSlots.length === 1 
       ? timeSlots[0].displayText 
       : `${timeSlots.length} slots selected`
-    : '24-hour service'; // For services that don't require slot selection
+    : 'Time slots';
   const summaryText = [
     categoryName || 'Service',
     areaName || 'Area',
@@ -340,40 +379,36 @@ export default function PlansSelectionScreen() {
                 {/* Plan Price */}
                 <View style={styles.priceContainer}>
                   <View style={styles.priceRow}>
-                    {plan.isPostpaid && (plan.bookingAmount !== null && plan.bookingAmount !== undefined || plan.bookingPercentage !== null && plan.bookingPercentage !== undefined) ? (
-                      <>
-                        <Text variant="titleMedium" style={styles.price}>
-                          {formatPrice(
-                            plan.bookingAmount !== null && plan.bookingAmount !== undefined
-                              ? plan.bookingAmount
-                              : (plan.price.total * (plan.bookingPercentage || 0)) / 100
-                          )}
-                        </Text>
-                        <Text variant="bodySmall" style={styles.bookingLabel}>
-                          {' '}booking
-                        </Text>
-                        <Text variant="bodySmall" style={styles.totalAmount}>
-                          {' '}(Total: {formatPrice(plan.price.total)})
-                        </Text>
-                      </>
-                    ) : (
-                      <>
-                        <Text variant="titleMedium" style={styles.price}>
-                          {formatPrice(plan.price.total)}
-                        </Text>
-                        {plan.price.discount > 0 && (
-                          <Text variant="bodySmall" style={styles.originalPrice}>
-                            {formatPrice(plan.price.amount)}
-                          </Text>
-                        )}
-                        {plan.duration && (
-                          <Text variant="bodySmall" style={styles.duration}>
-                            {' '}/ {plan.duration} {plan.duration === 1 ? 'day' : 'days'}
-                          </Text>
-                        )}
-                      </>
+                    <Text variant="titleMedium" style={styles.price}>
+                      {formatPrice(plan.price.total)}
+                    </Text>
+                    {plan.price.discount > 0 && (
+                      <Text variant="bodySmall" style={styles.originalPrice}>
+                        {formatPrice(plan.price.amount)}
+                      </Text>
                     )}
+                    <Text variant="bodySmall" style={styles.duration}>
+                      {plan.duration 
+                        ? ` / ${plan.duration} ${plan.duration === 1 ? 'day' : 'days'}`
+                        : ' / month'}
+                    </Text>
                   </View>
+                  {/* Booking Amount - Show for postpaid plans */}
+                  {plan.isPostpaid && plan.bookingAmount !== undefined && plan.bookingAmount !== null && (
+                    <View style={styles.bookingAmountContainer}>
+                      <Text variant="bodySmall" style={styles.bookingAmountLabel}>
+                        Booking Amount:
+                      </Text>
+                      <Text variant="bodyMedium" style={styles.bookingAmount}>
+                        {formatPrice(plan.bookingAmount)}
+                      </Text>
+                      {plan.bookingPercentage !== undefined && plan.bookingPercentage !== null && (
+                        <Text variant="bodySmall" style={styles.bookingPercentage}>
+                          ({plan.bookingPercentage}% of total)
+                        </Text>
+                      )}
+                    </View>
+                  )}
                 </View>
                 
                 {/* Disabled Overlay for Free Plans */}
@@ -540,13 +575,27 @@ const styles = StyleSheet.create({
   duration: {
     color: '#666666',
   },
-  bookingLabel: {
-    color: '#2196F3',
-    fontWeight: '600',
+  bookingAmountContainer: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
   },
-  totalAmount: {
+  bookingAmountLabel: {
     color: '#666666',
-    fontSize: 12,
+    marginRight: 4,
+  },
+  bookingAmount: {
+    fontWeight: 'bold',
+    color: '#2196F3',
+    marginRight: 4,
+  },
+  bookingPercentage: {
+    color: '#999999',
+    fontStyle: 'italic',
   },
   emptyContainer: {
     flex: 1,

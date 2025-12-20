@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   TextInput as RNTextInput,
-  Image,
 } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,7 +19,6 @@ import { Area, AreaServed } from '../../types/home.types';
 import { RootStackParamList } from '../../navigation/types';
 import { logger } from '../../utils/logger';
 import { useDebounce } from '../../hooks/useDebounce';
-import { baihubAnalytics } from '../../services/baihub-analytics.service';
 
 type AreaSelectionRouteProp = RouteProp<RootStackParamList, 'AreaSelection'>;
 type AreaSelectionNavigationProp = NativeStackNavigationProp<
@@ -110,30 +108,12 @@ export default function AreaSelectionScreen() {
     if (debouncedSearchQuery !== searchQuery) {
       return; // Wait for debounce
     }
-    if (debouncedSearchQuery.trim()) {
-      // Log analytics event when user searches
-      baihubAnalytics.logAreaSearched({
-        area_searched: debouncedSearchQuery,
-        areas_available: areas.length,
-      });
-    }
     searchAreas(debouncedSearchQuery);
-  }, [debouncedSearchQuery, searchQuery, searchAreas, areas.length]);
+  }, [debouncedSearchQuery, searchQuery, searchAreas]);
 
-  const handleAreaSelect = useCallback(async (areaId: string) => {
-    const area = areas.find(a => a.id === areaId);
-    if (area) {
-      // Log analytics event
-      await baihubAnalytics.logAreaCardClicked({
-        area_id: areaId,
-        area_name: area.name,
-        screen: categoryId ? 'service_wise_listing' : 'home',
-        service_id: categoryId,
-        service_name: categoryName,
-      });
-    }
+  const handleAreaSelect = useCallback((areaId: string) => {
     setSelectedArea(areaId);
-  }, [areas, categoryId, categoryName]);
+  }, []);
 
   const handleContinue = useCallback(async () => {
     if (!selectedArea) {
@@ -142,34 +122,16 @@ export default function AreaSelectionScreen() {
     }
     const selectedAreaData = areas.find((area) => area.id === selectedArea);
     if (selectedAreaData) {
-      // Log analytics event
-      await baihubAnalytics.logAreaSelected({
-        area_id: selectedArea,
-        area_name: selectedAreaData.name,
-        screen: categoryId ? 'service_wise_listing' : 'home',
-        service_id: categoryId,
-        service_name: categoryName,
-      });
-      
-      // If categoryId is already provided (from home page), check if slot selection is required
+      // If categoryId is already provided (from home page)
       if (categoryId) {
-        // Fetch category data to check requiresSlotSelection
+        // Fetch categories to check requiresSlotSelection
         try {
           const categoriesResponse = await homeApi.getCategories({ areaId: selectedArea });
-          const categoryData = categoriesResponse.data?.find(cat => cat.id === categoryId);
-          const requiresSlotSelection = categoryData?.requiresSlotSelection ?? true;
+          const category = categoriesResponse.data?.find((cat) => cat.id === categoryId);
+          const requiresSlotSelection = category?.requiresSlotSelection !== false; // Default to true if not specified
           
-          if (!requiresSlotSelection) {
-            // Skip slot selection for 24-hour services
-            navigation.navigate('PlansSelection', {
-              areaId: selectedArea,
-              categoryId,
-              areaName: selectedAreaData.name,
-              categoryName,
-              serviceId: route.params.serviceId,
-              timeSlots: [], // Empty time slots for 24-hour services
-            });
-          } else {
+          if (requiresSlotSelection) {
+            // Navigate to TimeSlotSelection
             navigation.navigate('TimeSlotSelection', {
               areaId: selectedArea,
               categoryId,
@@ -177,10 +139,20 @@ export default function AreaSelectionScreen() {
               categoryName,
               serviceId: route.params.serviceId, // Pass serviceId if available
             });
+          } else {
+            // Skip TimeSlotSelection and go directly to PlansSelection with empty timeSlots
+            navigation.navigate('PlansSelection', {
+              areaId: selectedArea,
+              categoryId,
+              areaName: selectedAreaData.name,
+              categoryName,
+              serviceId: route.params.serviceId,
+              timeSlots: [], // Empty array when slot selection is not required
+            });
           }
-        } catch (error) {
-          // If fetching category fails, default to requiring slot selection
-          logger.error('Failed to fetch category data', error);
+        } catch (err: any) {
+          logger.error('Failed to fetch category info', err);
+          // Fallback: navigate to TimeSlotSelection if we can't fetch category info
           navigation.navigate('TimeSlotSelection', {
             areaId: selectedArea,
             categoryId,
@@ -326,17 +298,6 @@ export default function AreaSelectionScreen() {
                   onPress={() => handleAreaSelect(area.id)}
                   activeOpacity={0.7}
                 >
-                  {/* Area Image or Icon */}
-                  {area.displayImage?.imageUrl ? (
-                    <View style={styles.areaImageContainer}>
-                      <Image 
-                        source={{ uri: area.displayImage.imageUrl }} 
-                        style={styles.areaImage}
-                        resizeMode="cover"
-                      />
-                    </View>
-                  ) : null}
-
                   <View style={styles.areaInfo}>
                     <Text variant="titleMedium" style={styles.areaName}>
                       {area.name}
@@ -555,7 +516,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   continueButton: {
-    backgroundColor: '#f9cb00',
+    backgroundColor: '#e0e0e0',
     borderRadius: 8,
   },
   continueButtonContent: {
@@ -567,7 +528,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   cancelButton: {
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#f9cb00',
     borderRadius: 8,
   },
   cancelButtonContent: {
@@ -583,17 +544,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-  },
-  areaImageContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    overflow: 'hidden',
-    marginRight: 12,
-  },
-  areaImage: {
-    width: '100%',
-    height: '100%',
   },
 });
 

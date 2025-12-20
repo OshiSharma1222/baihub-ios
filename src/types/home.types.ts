@@ -11,22 +11,15 @@ export interface HeroBanner {
   order: number;
 }
 
-export interface DisplayImage {
-  id: string;
-  key: string;
-  baseUrl: string;
-  imageUrl: string;
-}
-
 export interface Category {
   id: string;
   name: string;
   slug: string;
+  description?: string;
   icon?: string;
   image?: string;
-  displayImage?: DisplayImage;
   order: number;
-  requiresSlotSelection?: boolean; // Whether this service requires time slot selection (false for 24-hour services)
+  requiresSlotSelection?: boolean; // If false, skip time slot selection screen
 }
 
 export interface Review {
@@ -59,7 +52,8 @@ export interface AreaServed {
   name: string;
   serviceCount: number;
   isActive: boolean;
-  displayImage?: DisplayImage;
+  icon?: string;
+  isVisibleOnHomePage?: boolean;
   createdAt?: string;
 }
 
@@ -93,7 +87,6 @@ export interface Area {
   longitude?: string;
   isActive: boolean;
   serviceCount?: number;
-  displayImage?: DisplayImage;
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string | null;
@@ -112,12 +105,9 @@ export interface Plan {
   };
   isActive: boolean;
   duration?: number; // Duration in days
-  isPostpaid?: boolean; // Whether plan is postpaid
-  bookingAmount?: number; // Fixed amount required at booking
-  bookingPercentage?: number; // Percentage of total amount required at booking
-  userId?: string; // User-specific plan
-  areaId?: string; // Area-specific plan
-  categoryId?: string; // Service-specific plan
+  isPostpaid?: boolean; // If true, only booking amount is collected at order creation
+  bookingAmount?: number; // Fixed amount required at booking (takes precedence over bookingPercentage)
+  bookingPercentage?: number; // Percentage of total amount required at booking (0-100)
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string | null;

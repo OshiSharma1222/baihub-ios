@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontFamily: Platform.OS === 'ios' ? 'Inter-Bold' : 'Inter_700Bold',
+    fontFamily: 'Inter-Bold',
     fontSize: 18,
     fontWeight: '700',
     color: '#000000',
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     maxWidth: 273,
   },
   description: {
-    fontFamily: Platform.OS === 'ios' ? 'Inter-Light' : 'Inter_300Light',
+    fontFamily: 'Inter-Light',
     fontSize: 12,
     fontWeight: '300',
     color: '#000000',
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   buttonText: {
-    fontFamily: Platform.OS === 'ios' ? 'Inter-Regular' : 'Inter_400Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 20,
     fontWeight: '400',
     color: '#FFCC00', // Brand yellow

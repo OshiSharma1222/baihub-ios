@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { View, StyleSheet, ScrollView, Linking, Alert } from 'react-native';
-import { Text, Card, Avatar, List, Divider } from 'react-native-paper';
+import { Text, Card, Avatar, Button, Divider } from 'react-native-paper';
 import { useAuthStore } from '../../store';
 import { useNavigation } from '@react-navigation/native';
 
@@ -66,54 +66,66 @@ export default function ProfileScreen() {
       </Card>
 
       <Card style={styles.card}>
-        <Card.Content style={styles.cardContent}>
-          <List.Item
-            title="My Orders"
-            left={(props) => <List.Icon {...props} icon="clipboard-list" color="#000000" />}
+        <Card.Content>
+          <Button
+            mode="text"
             onPress={() => navigation.navigate('Orders' as never)}
-            titleStyle={styles.menuItemTitle}
-            style={styles.listItem}
-          />
+            icon="clipboard-list"
+            style={styles.menuItem}
+            textColor="#000000"
+          >
+            My Orders
+          </Button>
           <Divider />
-          <List.Item
-            title="Help & Support"
-            left={(props) => <List.Icon {...props} icon="help-circle" color="#000000" />}
+          <Button
+            mode="text"
             onPress={handleHelpSupport}
-            titleStyle={styles.menuItemTitle}
-            style={styles.listItem}
-          />
+            icon="help-circle"
+            style={styles.menuItem}
+            textColor="#000000"
+          >
+            Help & Support
+          </Button>
           <Divider />
-          <List.Item
-            title="About"
-            left={(props) => <List.Icon {...props} icon="information" color="#000000" />}
+          <Button
+            mode="text"
             onPress={() => openUrl(ABOUT_URL)}
-            titleStyle={styles.menuItemTitle}
-            style={styles.listItem}
-          />
+            icon="information"
+            style={styles.menuItem}
+            textColor="#000000"
+          >
+            About
+          </Button>
           <Divider />
-          <List.Item
-            title="Terms & Conditions"
-            left={(props) => <List.Icon {...props} icon="file-document-outline" color="#000000" />}
+          <Button
+            mode="text"
             onPress={() => openUrl(TERMS_URL)}
-            titleStyle={styles.menuItemTitle}
-            style={styles.listItem}
-          />
+            icon="file-document-outline"
+            style={styles.menuItem}
+            textColor="#000000"
+          >
+            Terms & Conditions
+          </Button>
           <Divider />
-          <List.Item
-            title="Privacy Policy"
-            left={(props) => <List.Icon {...props} icon="shield-lock-outline" color="#000000" />}
+          <Button
+            mode="text"
             onPress={() => openUrl(PRIVACY_URL)}
-            titleStyle={styles.menuItemTitle}
-            style={styles.listItem}
-          />
+            icon="shield-lock-outline"
+            style={styles.menuItem}
+            textColor="#000000"
+          >
+            Privacy Policy
+          </Button>
           <Divider />
-          <List.Item
-            title="Logout"
-            left={(props) => <List.Icon {...props} icon="logout" color="#000000" />}
+          <Button
+            mode="text"
             onPress={logout}
-            titleStyle={styles.menuItemTitle}
-            style={styles.listItem}
-          />
+            icon="logout"
+            style={styles.menuItem}
+            textColor="#000000"
+          >
+            Logout
+          </Button>
         </Card.Content>
       </Card>
     </ScrollView>
@@ -145,19 +157,10 @@ const styles = StyleSheet.create({
   email: {
     opacity: 0.7,
   },
-  cardContent: {
-    padding: 0,
-  },
-  listItem: {
+  menuItem: {
+    justifyContent: 'flex-start',
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginHorizontal: 0,
-    minHeight: 48,
-  },
-  menuItemTitle: {
-    color: '#000000',
-    fontSize: 16,
-    fontWeight: '400',
+    alignItems: "flex-start",
   },
 });
 

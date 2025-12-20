@@ -18,7 +18,7 @@ import { homeApi } from '../../api/endpoints';
 import { Category } from '../../types/home.types';
 import { RootStackParamList } from '../../navigation/types';
 import { logger } from '../../utils/logger';
-import { baihubAnalytics } from '../../services/baihub-analytics.service';
+import { DescriptionModal } from '../../components/common';
 
 type ServicesListingRouteProp = RouteProp<RootStackParamList, 'ServicesListing'>;
 type ServicesListingNavigationProp = NativeStackNavigationProp<
@@ -59,6 +59,8 @@ export default function ServicesListingScreen() {
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
+  const [selectedServiceForModal, setSelectedServiceForModal] = useState<Category | null>(null);
 
   const fetchServices = useCallback(async () => {
     try {
@@ -80,68 +82,70 @@ export default function ServicesListingScreen() {
     fetchServices();
   }, [fetchServices]);
 
-  const handleServiceSelect = useCallback(async (serviceId: string) => {
+  const handleServiceSelect = useCallback((serviceId: string) => {
     const service = services.find(s => s.id === serviceId);
     if (service) {
-      // Log analytics event
-      await baihubAnalytics.logServiceCardClicked({
-        service_id: serviceId,
-        service_name: service.name,
-        screen: 'area_wise_listing',
-        area_name: areaName,
-        area_id: areaId,
-      });
+      // Always set selected service first
+      setSelectedService(serviceId);
+      // Show description modal if description exists
+      if (service.description && service.description.trim() !== '') {
+        setSelectedServiceForModal(service);
+        setShowDescriptionModal(true);
+      }
+      // If no description, service is already selected and user can click Continue button
     }
-    setSelectedService(serviceId);
-  }, [services, areaName, areaId]);
+  }, [services]);
 
-  const handleContinue = useCallback(async () => {
+  const handleContinue = useCallback(() => {
+    // Close modal first
+    setShowDescriptionModal(false);
+    
     if (!selectedService) {
       // Show error or toast
       return;
     }
-    const service = services.find(s => s.id === selectedService);
-    if (service) {
-      // Log analytics event
-      await baihubAnalytics.logServiceSelected({
-        service_id: selectedService,
-        service_name: service.name,
-        screen: 'area_wise_listing',
-        area_name: areaName,
-        area_id: areaId,
-      });
-    }
-    // Navigate to time slot selection screen
     const selectedServiceData = services.find(s => s.id === selectedService);
-    const requiresSlotSelection = selectedServiceData?.requiresSlotSelection ?? true;
+    if (!selectedServiceData) {
+      return;
+    }
+    
+    // Check if slot selection is required
+    const requiresSlotSelection = selectedServiceData.requiresSlotSelection !== false; // Default to true if not specified
     
     logger.info('Continue with service', { 
       serviceId: selectedService,
       areaId,
-      categoryId: selectedService,
+      categoryId: selectedService, // Using selectedService as categoryId for now
       requiresSlotSelection,
     });
-
-    // If service doesn't require slot selection (24-hour service), skip to plans selection
-    if (!requiresSlotSelection) {
-      navigation.navigate('PlansSelection', {
-        areaId,
-        categoryId: selectedService,
-        areaName,
-        categoryName: selectedServiceData?.name,
-        serviceId: selectedService,
-        timeSlots: [], // Empty time slots for 24-hour services
-      });
-    } else {
+    
+    if (requiresSlotSelection) {
+      // Navigate to time slot selection screen
       navigation.navigate('TimeSlotSelection', {
         areaId,
         categoryId: selectedService, // The selected service is the category
         areaName,
-        categoryName: selectedServiceData?.name,
+        categoryName: selectedServiceData.name,
         serviceId: selectedService, // Pass serviceId
+      });
+    } else {
+      // Skip TimeSlotSelection and go directly to PlansSelection with empty timeSlots
+      navigation.navigate('PlansSelection', {
+        areaId,
+        categoryId: selectedService,
+        areaName,
+        categoryName: selectedServiceData.name,
+        serviceId: selectedService,
+        timeSlots: [], // Empty array when slot selection is not required
       });
     }
   }, [selectedService, areaId, areaName, services, navigation]);
+
+  const handleCloseModal = useCallback(() => {
+    setShowDescriptionModal(false);
+    setSelectedServiceForModal(null);
+    // Don't clear selectedService - keep it selected
+  }, []);
 
   const handleRetry = useCallback(() => {
     fetchServices();
@@ -229,10 +233,47 @@ export default function ServicesListingScreen() {
       >
         {services.map((service) => {
           const isSelected = selectedService === service.id;
-          const iconName = getServiceIcon(service.name);
           // Mock price - in real app, this would come from the API response
           // Assuming the API will return a price field in the Category type
           const startingPrice = (service as any).startingPrice || service.order * 500 + 349;
+
+          // Helper function to check if icon is a URL
+          const isIconUrl = (icon: string | undefined): boolean => {
+            if (!icon) return false;
+            return icon.startsWith('http://') || icon.startsWith('https://');
+          };
+
+          // Render icon (URL or icon name)
+          const renderServiceIcon = () => {
+            if (!service.icon) {
+              const iconName = getServiceIcon(service.name);
+              return (
+                <Icon
+                  name={iconName}
+                  size={32}
+                  color={isSelected ? '#f9cb00' : '#666'}
+                />
+              );
+            }
+            
+            if (isIconUrl(service.icon)) {
+              return (
+                <Image
+                  source={{ uri: service.icon }}
+                  style={{ width: 32, height: 32 }}
+                  resizeMode="contain"
+                />
+              );
+            }
+            
+            return (
+              <Icon
+                name={service.icon}
+                size={32}
+                color={isSelected ? '#f9cb00' : '#666'}
+              />
+            );
+          };
 
           return (
             <TouchableOpacity
@@ -244,21 +285,9 @@ export default function ServicesListingScreen() {
               onPress={() => handleServiceSelect(service.id)}
               activeOpacity={0.7}
             >
-              {/* Service Icon or Image */}
+              {/* Service Icon */}
               <View style={styles.iconContainer}>
-                {service.displayImage?.imageUrl ? (
-                  <Image 
-                    source={{ uri: service.displayImage.imageUrl }} 
-                    style={styles.serviceImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <Icon
-                    name={iconName}
-                    size={32}
-                    color={isSelected ? '#f9cb00' : '#666'}
-                  />
-                )}
+                {renderServiceIcon()}
               </View>
 
               {/* Service Info */}
@@ -307,6 +336,17 @@ export default function ServicesListingScreen() {
           Continue
         </Button>
       </View>
+
+      {/* Description Modal */}
+      {selectedServiceForModal && (
+        <DescriptionModal
+          visible={showDescriptionModal}
+          title={selectedServiceForModal.name}
+          description={selectedServiceForModal.description}
+          onClose={handleCloseModal}
+          onContinue={handleContinue}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -366,16 +406,11 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 56,
     height: 56,
-    overflow: 'hidden',
     borderRadius: 28,
     backgroundColor: '#f5f5f5',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
-  },
-  serviceImage: {
-    width: '100%',
-    height: '100%',
   },
   serviceInfo: {
     flex: 1,

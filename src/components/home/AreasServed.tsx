@@ -21,6 +21,31 @@ export const AreasServed: React.FC<AreasServedProps> = ({
     return null;
   }
 
+  // Helper function to check if icon is a URL
+  const isIconUrl = (icon: string | undefined): boolean => {
+    if (!icon) return false;
+    return icon.startsWith('http://') || icon.startsWith('https://');
+  };
+
+  // Helper function to render icon (URL or icon name)
+  const renderIcon = (icon: string | undefined, size: number = 48) => {
+    if (!icon) {
+      return <Icon name="map-marker" size={size} color="#f9cb00" />;
+    }
+    
+    if (isIconUrl(icon)) {
+      return (
+        <Image
+          source={{ uri: icon }}
+          style={{ width: size, height: size, borderRadius: 48 }}
+          resizeMode="contain"
+        />
+      );
+    }
+    
+    return <Icon name={icon} size={size} color="#f9cb00" />;
+  };
+
   // Show top 6 cities, rest can be viewed via "View All"
   const displayedCities = areas.cities.slice(0, 6);
   const hasMore = areas.cities.length > 6;
@@ -47,17 +72,7 @@ export const AreasServed: React.FC<AreasServedProps> = ({
             onPress={() => onAreaPress?.(city.id || '', city.name)}
             activeOpacity={0.7}
           >
-            {city.displayImage?.imageUrl ? (
-              <View style={styles.imageContainer}>
-                <Image 
-                  source={{ uri: city.displayImage.imageUrl }} 
-                  style={styles.areaImage}
-                  resizeMode="cover"
-                />
-              </View>
-            ) : (
-              <Icon name="map-marker" size={20} color="#f9cb00" />
-            )}
+            {renderIcon(city.icon)}
             <Text variant="bodyMedium" style={styles.cityName}>
               {city.name}
             </Text>
@@ -118,17 +133,6 @@ const styles = StyleSheet.create({
   serviceCount: {
     color: '#666666',
     fontSize: 12,
-  },
-  imageContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginBottom: 4,
-  },
-  areaImage: {
-    width: '100%',
-    height: '100%',
   },
 });
 

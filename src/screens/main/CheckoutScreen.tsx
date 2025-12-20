@@ -53,16 +53,93 @@ export default function CheckoutScreen() {
 
       const razorpayOrder = order.meta.razorpayOrder;
 
+      // IMPORTANT: For postpaid plans with booking amount, the backend MUST create
+      // the Razorpay order with the booking amount (not the full plan amount).
+      // The frontend validates this and prevents payment if there's a mismatch.
+      // Check if this is a postpaid plan with booking amount
+      const isPostpaid = plan.isPostpaid === true;
+      // Calculate booking amount considering number of slots
+      // For full-time services (timeSlots.length === 0), use booking amount directly (not multiplied)
+      // For slot-based services (timeSlots.length > 0), multiply by number of slots
+      const isFullTimeService = timeSlots.length === 0;
+      const numberOfSlots = timeSlots.length > 0 ? timeSlots.length : 0;
+      
+      // Handle bookingAmount as number or string (backend might send it as string)
+      const bookingAmountRaw = plan.bookingAmount;
+      let calculatedBookingAmount: number | undefined = bookingAmountRaw !== undefined && bookingAmountRaw !== null
+        ? (typeof bookingAmountRaw === 'string' ? parseFloat(bookingAmountRaw) : bookingAmountRaw)
+        : undefined;
+      
+      // Multiply by numberOfSlots only for slot-based services
+      if (calculatedBookingAmount !== undefined && !isFullTimeService && numberOfSlots > 0) {
+        calculatedBookingAmount = calculatedBookingAmount * numberOfSlots;
+      }
+      
+      // If bookingAmount is not provided but bookingPercentage is, calculate it
+      if (isPostpaid && (calculatedBookingAmount === undefined || isNaN(calculatedBookingAmount)) && plan.bookingPercentage !== undefined && plan.bookingPercentage !== null) {
+        // Calculate booking amount from total (which already includes slot multiplication if applicable)
+        calculatedBookingAmount = (total * plan.bookingPercentage) / 100;
+        logger.info('Calculated booking amount from percentage', {
+          bookingPercentage: plan.bookingPercentage,
+          planTotal: plan.price.total,
+          numberOfSlots,
+          bookingAmountPerSlot,
+          calculatedBookingAmount,
+        });
+      }
+      
+      const expectedAmountInPaise = isPostpaid && calculatedBookingAmount !== undefined && calculatedBookingAmount !== null && !isNaN(calculatedBookingAmount)
+        ? Math.round(calculatedBookingAmount * 100) // Convert to paise (round to avoid floating point issues)
+        : Math.round(total * 100); // Full amount in paise (total already includes numberOfSlots)
+
+      // Verify that Razorpay order amount matches expected amount
+      // For postpaid plans, backend should create Razorpay order with booking amount
+      if (isPostpaid && calculatedBookingAmount !== undefined && calculatedBookingAmount !== null && !isNaN(calculatedBookingAmount)) {
+        if (razorpayOrder.amount !== expectedAmountInPaise) {
+          const errorMessage = `Payment configuration error: The backend created a Razorpay order for ₹${(razorpayOrder.amount / 100).toFixed(2)}, but for this postpaid plan, only the booking amount of ₹${calculatedBookingAmount.toFixed(2)} should be charged. Please contact support or try again later.`;
+          
+          logger.error('Razorpay order amount mismatch for postpaid plan - Payment blocked', {
+            expected: expectedAmountInPaise,
+            actual: razorpayOrder.amount,
+            expectedInRupees: calculatedBookingAmount,
+            actualInRupees: razorpayOrder.amount / 100,
+            calculatedBookingAmount,
+            planTotal: plan.price.total,
+            numberOfSlots,
+            message: 'Backend should create Razorpay order with booking amount for postpaid plans',
+          });
+          
+          // Prevent payment and show error to user
+          toast.error(
+            `Payment configuration error. Expected booking amount: ₹${calculatedBookingAmount.toFixed(2)}, but received: ₹${(razorpayOrder.amount / 100).toFixed(2)}. Please contact support.`,
+            'Payment Error'
+          );
+          return; // Stop payment process
+        } else {
+          logger.info('Postpaid plan: Using booking amount for Razorpay payment', {
+            calculatedBookingAmount,
+            amountInPaise: razorpayOrder.amount,
+            planTotal: plan.price.total,
+            numberOfSlots,
+          });
+        }
+      }
+
       // TODO: get these from your logged-in user profile
       const userName = 'Arpit Jain';
       const userEmail = 'arpit@example.com';
       const userPhone = '9999999999';
 
+      // Build description based on payment type
+      const paymentDescription = isPostpaid && bookingAmount !== undefined && bookingAmount !== null
+        ? `Booking amount for ${categoryName} (Postpaid Plan)`
+        : `Payment for ${categoryName}`;
+
       const options: any = {
-        description: `Payment for ${categoryName}`,
+        description: paymentDescription,
         currency: razorpayOrder.currency || 'INR',
         key: razorpayOrder.rzp_key,              // ✅ from backend
-        amount: razorpayOrder.amount.toString(), // ✅ paise as string
+        amount: razorpayOrder.amount.toString(), // ✅ paise as string (booking amount for postpaid)
         name: 'BaiHub',
         order_id: razorpayOrder.id,              // ✅ "order_xxx"
         prefill: {
@@ -83,7 +160,15 @@ export default function CheckoutScreen() {
           order_id: order.id,
           plan_id: plan.id,
           area_id: areaId,
+          isPostpaid,
+          bookingAmount,
         });
+        // Calculate the actual amount being charged
+        // For postpaid plans, use booking amount; for prepaid, use Razorpay order amount
+        const actualChargeAmount = isPostpaid && calculatedBookingAmount !== undefined && calculatedBookingAmount !== null
+          ? calculatedBookingAmount
+          : razorpayOrder.amount / 100; // Convert from paise to rupees
+
         await baihubAnalytics.logPayNowClicked({
           area_id: areaId,
           area_name: areaName,
@@ -91,14 +176,14 @@ export default function CheckoutScreen() {
           service_name: categoryName,
           came_from: categoryId ? 'area_wise_listing' : 'service_wise_listing',
           plan_id: plan.id,
-          plan_amount: plan.price.amount,
-          plan_discount: plan.price.discount,
-          plan_total: plan.price.total,
+          plan_amount: originalPrice, // Already multiplied by numberOfSlots
+          plan_discount: discount, // Already multiplied by numberOfSlots
+          plan_total: total, // Already multiplied by numberOfSlots
           plan_title: plan.title,
           plan_description: plan.description,
-          selected_slots_ids: timeSlots.length > 0 ? timeSlots.map(s => s.id) : [],
-          selected_slots_titles: timeSlots.length > 0 ? timeSlots.map(s => s.displayText) : [],
-          order_total: razorpayOrder.amount / 100, // Convert from paise to rupees
+          selected_slots_ids: timeSlots.map(s => s.id),
+          selected_slots_titles: timeSlots.map(s => s.displayText),
+          order_total: actualChargeAmount, // Booking amount for postpaid, full amount for prepaid
           order_id: order.id,
           user_address: savedAddress ? `${savedAddress.addressLine1}, ${savedAddress.city}` : undefined,
         });
@@ -156,69 +241,85 @@ export default function CheckoutScreen() {
       const today = new Date();
       const slotDate = today.toISOString().split('T')[0]; // YYYY-MM-DD format
       
-      // Build time slots array from selected slots (only include if slots exist)
-      const orderTimeSlots = timeSlots.length > 0 
-        ? timeSlots.map((slot) => ({
-            timeSlotId: slot.id, // Time slot ID from route params (now from backend)
-            slotDate: slotDate, // Today's date (can be updated to allow date selection)
-          }))
-        : undefined; // Omit for 24-hour services that don't require slot selection
+      // Build time slots array from selected slots
+      const orderTimeSlots = timeSlots.map((slot) => ({
+        timeSlotId: slot.id, // Time slot ID from route params (now from backend)
+        slotDate: slotDate, // Today's date (can be updated to allow date selection)
+      }));
       
       // Build notes with all selected time slots
       const timeSlotsText = timeSlots.length > 0 
         ? timeSlots.map(s => s.displayText).join(', ')
-        : '24-hour service (no time slots)';
+        : 'No time slots required';
       
-      // Build order data - conditionally include timeSlots and slots only if they exist
-      const orderData: any = {
+      const orderData = {
         planId: plan.id,
         addressId: address.id,
         categoryId: categoryId,
         areaId: areaId, // Include areaId from route params
         serviceId: serviceId, // Include serviceId if provided
+        timeSlots: orderTimeSlots,
+        slots: timeSlots.length, // Number of slots selected (0 if not required)
         meta: {
           paymentMethod: 'card',
-          notes: `Service: ${categoryName}, Area: ${areaName}, Time slots: ${timeSlotsText}`,
+          notes: `Service: ${categoryName}, Area: ${areaName}${timeSlots.length > 0 ? `, Time slots: ${timeSlotsText}` : ''}`,
         },
       };
-      
-      // Only include timeSlots and slots if there are actual slots (not 24-hour service)
-      if (timeSlots.length > 0) {
-        orderData.timeSlots = orderTimeSlots;
-        orderData.slots = timeSlots.length; // Number of slots selected
-      }
 
       const response = await homeApi.createOrder(orderData);
       if (response.data) {
         logger.info('Order created successfully', response.data);
         
-        // Check if this is a free plan (no Razorpay order needed)
-        if (response.data.status === 'SUCCESS' && !response.data.meta?.razorpayOrder) {
-          // Free plan - navigate directly to success screen
+        // Check order status and payment requirements
+        const orderStatus = response.data.status;
+        const hasRazorpayOrder = !!response.data.meta?.razorpayOrder;
+        
+        // Determine if payment is needed:
+        // 1. Free plan: totalAmount = 0, status = SUCCESS, no Razorpay
+        // 2. Postpaid with bookingAmount = 0: totalAmount > 0, status = SUCCESS, no Razorpay
+        // 3. Prepaid or Postpaid with bookingAmount > 0: status = INITIATED, has Razorpay
+        
+        const isFreePlan = (plan.price?.total || 0) <= 0;
+        const isPostpaidWithNoBooking = plan.isPostpaid === true && 
+          (plan.bookingAmount === undefined || plan.bookingAmount === null || plan.bookingAmount === 0);
+        
+        if (orderStatus === 'SUCCESS' && !hasRazorpayOrder) {
+          // Order is immediately successful (free plan OR postpaid with bookingAmount = 0)
+          logger.info('Order completed without payment', {
+            isFreePlan,
+            isPostpaidWithNoBooking,
+            orderStatus,
+          });
           navigation.navigate('AfterPayment', {
             orderId: response.data.id,
-            paymentId: undefined, // No payment for free plans
+            paymentId: undefined, // No payment needed
           });
-        } else if (response.data.meta?.razorpayOrder) {
-          // Paid plan - open Razorpay checkout
+        } else if (hasRazorpayOrder && orderStatus === 'INITIATED') {
+          // Order requires payment via Razorpay (prepaid OR postpaid with bookingAmount > 0)
+          logger.info('Order requires payment via Razorpay', {
+            hasRazorpayOrder,
+            orderStatus,
+          });
           await openRazorpayCheckout(response.data);
         } else {
-          throw new Error('Order created but payment details not available');
+          // Unexpected state
+          logger.error('Order in unexpected state', {
+            orderStatus,
+            hasRazorpayOrder,
+            isFreePlan,
+            isPostpaidWithNoBooking,
+          });
+          throw new Error('Order created but payment flow cannot be determined');
         }
       } else {
         throw new Error('Order creation failed');
       }
     } catch (err: any) {
-      logger.error('Failed to create order', {
-        error: err,
-        response: err.response?.data,
-        status: err.response?.status,
-      });
+      logger.error('Failed to create order', err);
       
       // Handle duplicate free plan enrollment error
       if (err.response?.status === 400) {
         const errorMessage = err.response?.data?.message || err.message || '';
-        const errorData = err.response?.data || {};
         
         if (errorMessage.includes('already enrolled in a free plan')) {
           // Extract plan name from error message if available
@@ -235,21 +336,6 @@ export default function CheckoutScreen() {
           setTimeout(() => {
             navigation.navigate('Orders');
           }, 2000);
-          return;
-        }
-        
-        // Handle validation errors (e.g., missing time slots when required)
-        if (errorMessage.includes('time slot') || errorMessage.includes('timeSlot') || errorData.timeSlots) {
-          toast.error(
-            errorMessage || 'Time slot validation failed. Please try again.',
-            'Validation Error'
-          );
-          return;
-        }
-        
-        // Show backend error message if available
-        if (errorMessage) {
-          toast.error(errorMessage, 'Order Creation Failed');
           return;
         }
       }
@@ -275,8 +361,8 @@ export default function CheckoutScreen() {
       plan_total: plan.price.total,
       plan_title: plan.title,
       plan_description: plan.description,
-      selected_slots_ids: timeSlots.length > 0 ? timeSlots.map(s => s.id) : [],
-      selected_slots_titles: timeSlots.length > 0 ? timeSlots.map(s => s.displayText) : [],
+      selected_slots_ids: timeSlots.map(s => s.id),
+      selected_slots_titles: timeSlots.map(s => s.displayText),
     });
     
     if (savedAddress) {
@@ -303,20 +389,23 @@ export default function CheckoutScreen() {
   }, []);
 
   // Calculate price breakdown
-  const originalPrice = plan.price.amount;
-  const discount = plan.price.discount;
-  const total = plan.price.total;
-  
-  // Calculate booking amount for postpaid plans
-  const bookingAmount = plan.isPostpaid
-    ? plan.bookingAmount !== null && plan.bookingAmount !== undefined
-      ? plan.bookingAmount
-      : plan.bookingPercentage !== null && plan.bookingPercentage !== undefined
-      ? (total * plan.bookingPercentage) / 100
-      : total
-    : total;
-  
-  const remainingAmount = plan.isPostpaid ? total - bookingAmount : 0;
+  // For full-time services (timeSlots.length === 0), use plan price directly (not multiplied)
+  // For slot-based services (timeSlots.length > 0), multiply by number of slots
+  const isFullTimeService = timeSlots.length === 0;
+  const numberOfSlots = timeSlots.length > 0 ? timeSlots.length : 0; // 0 for full-time services
+  const originalPrice = isFullTimeService 
+    ? plan.price.amount 
+    : plan.price.amount * numberOfSlots;
+  const discount = isFullTimeService 
+    ? plan.price.discount 
+    : plan.price.discount * numberOfSlots;
+  const total = isFullTimeService 
+    ? plan.price.total 
+    : plan.price.total * numberOfSlots;
+  const isPostpaid = plan.isPostpaid === true;
+  const bookingAmount = plan.bookingAmount 
+    ? (isFullTimeService ? plan.bookingAmount : plan.bookingAmount * numberOfSlots)
+    : undefined;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -350,11 +439,7 @@ export default function CheckoutScreen() {
               {categoryName || 'Service'}
             </Text>
             <Text variant="bodyMedium" style={styles.infoSubtext}>
-              {areaName} • {timeSlots.length === 0 
-                ? '24-hour service' 
-                : timeSlots.length === 1 
-                  ? timeSlots[0].displayText 
-                  : `${timeSlots.length} slots`}
+              {areaName}{timeSlots.length > 0 && ` • ${timeSlots.length === 1 ? timeSlots[0].displayText : `${timeSlots.length} slots`}`}
             </Text>
           </View>
         </View>
@@ -402,30 +487,33 @@ export default function CheckoutScreen() {
             )}
             <View style={[styles.priceRow, styles.totalRow]}>
               <Text variant="titleLarge" style={styles.totalLabel}>
-                {plan.isPostpaid ? 'Total Amount' : 'Total'}
+                Total
               </Text>
               <Text variant="titleLarge" style={styles.totalValue}>
                 {formatPrice(total)}
               </Text>
             </View>
-            {plan.isPostpaid && bookingAmount < total && (
+            {/* Show booking amount for postpaid plans */}
+            {isPostpaid && bookingAmount !== undefined && bookingAmount !== null && (
               <>
                 <View style={styles.priceRow}>
                   <Text variant="bodyMedium" style={styles.priceLabel}>
                     Booking Amount (Pay Now)
                   </Text>
-                  <Text variant="bodyLarge" style={styles.bookingValue}>
+                  <Text variant="bodyLarge" style={styles.bookingAmountValue}>
                     {formatPrice(bookingAmount)}
                   </Text>
                 </View>
-                <View style={styles.priceRow}>
-                  <Text variant="bodySmall" style={styles.priceLabel}>
-                    Remaining Amount (Pay Later)
-                  </Text>
-                  <Text variant="bodySmall" style={styles.remainingValue}>
-                    {formatPrice(remainingAmount)}
-                  </Text>
-                </View>
+                {total - bookingAmount > 0 && (
+                  <View style={styles.priceRow}>
+                    <Text variant="bodySmall" style={styles.priceLabel}>
+                      Remaining Amount (Pay Later)
+                    </Text>
+                    <Text variant="bodySmall" style={styles.remainingAmountValue}>
+                      {formatPrice(total - bookingAmount)}
+                    </Text>
+                  </View>
+                )}
               </>
             )}
           </View>
@@ -464,7 +552,15 @@ export default function CheckoutScreen() {
           contentStyle={styles.continueButtonContent}
           labelStyle={styles.continueButtonLabel}
         >
-          {processingOrder ? 'Processing...' : 'Continue Payment'}
+          {processingOrder 
+            ? 'Processing...' 
+            : isPostpaid && bookingAmount !== undefined && bookingAmount !== null && bookingAmount > 0
+              ? `Pay ${formatPrice(bookingAmount)} Now`
+              : isPostpaid && (bookingAmount === undefined || bookingAmount === null || bookingAmount === 0)
+              ? `Continue (Pay Later)`
+              : total <= 0
+              ? 'Continue'
+              : `Pay ${formatPrice(total)} Now`}
         </Button>
       </View>
 
@@ -586,12 +682,13 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontWeight: 'bold',
   },
-  bookingValue: {
+  bookingAmountValue: {
     color: '#2196F3',
     fontWeight: 'bold',
   },
-  remainingValue: {
+  remainingAmountValue: {
     color: '#666666',
+    fontStyle: 'italic',
   },
   addressText: {
     color: '#000000',

@@ -42,10 +42,57 @@ export default function OTPVerificationScreen({ navigation, route }: any) {
     }
   }, [timer]);
 
+  // Handle paste - distribute digits across all OTP fields
+  const handlePaste = (pastedValue: string) => {
+    // Extract all digits from the pasted value
+    const digits = pastedValue.replace(/\D/g, '').slice(0, 4);
+    
+    if (digits.length > 0) {
+      const newOtp = ['', '', '', ''];
+      
+      // Fill OTP fields with pasted digits
+      for (let i = 0; i < digits.length && i < 4; i++) {
+        newOtp[i] = digits[i];
+      }
+      
+      setOtp(newOtp);
+      
+      // Clear the first input (where paste happened) after a brief moment
+      setTimeout(() => {
+        if (inputRefs.current[0]) {
+          inputRefs.current[0].setNativeProps({ text: newOtp[0] || '' });
+        }
+      }, 0);
+      
+      // Focus on the next empty field or the last field if all are filled
+      const nextEmptyIndex = newOtp.findIndex((digit) => digit === '');
+      const focusIndex = nextEmptyIndex !== -1 ? nextEmptyIndex : 3;
+      
+      setTimeout(() => {
+        inputRefs.current[focusIndex]?.focus();
+      }, 50);
+
+      // Auto-submit when all fields are filled
+      if (newOtp.every((digit) => digit !== '') && newOtp.length === 4) {
+        setTimeout(() => {
+          handleVerifyOtp(newOtp.join(''));
+        }, 150);
+      }
+    }
+  };
+
   const handleOtpChange = (index: number, value: string) => {
     // Only allow digits
     if (value && !/^\d+$/.test(value)) return;
 
+    // Check if this is a paste event (value length > 1)
+    // This happens when user pastes into any OTP input
+    if (value.length > 1) {
+      handlePaste(value);
+      return;
+    }
+    
+    // Single character input (normal typing)
     const newOtp = [...otp];
     newOtp[index] = value.slice(-1); // Only take the last character
     setOtp(newOtp);
@@ -167,7 +214,7 @@ export default function OTPVerificationScreen({ navigation, route }: any) {
               onChangeText={(value) => handleOtpChange(index, value)}
               onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
               keyboardType="number-pad"
-              maxLength={1}
+              maxLength={1} // Visual limit, but paste events will pass full value to onChangeText
               selectTextOnFocus
               autoFocus={index === 0}
             />

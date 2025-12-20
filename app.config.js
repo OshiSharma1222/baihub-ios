@@ -4,7 +4,7 @@ module.exports = {
   expo: {
     name: 'Baihub',
     slug: 'baihub-mobile',
-    version: '1.0.3',
+    version: '1.0.5',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -17,7 +17,7 @@ module.exports = {
     ios: {
       bundleIdentifier: 'com.baihub.app',
       supportsTablet: true,
-      buildNumber: '5',
+      buildNumber: '7',
       infoPlist: {
         NSLocationWhenInUseUsageDescription: 'This app needs access to your location to automatically detect your city. You can enter your city manually if you prefer not to share your location.',
         NSPhotoLibraryUsageDescription: 'This app may need access to your photo library to allow you to upload profile pictures or images for service bookings. This access is optional and you can use the app without granting photo library access.',
@@ -29,7 +29,7 @@ module.exports = {
       },
     },
     android: {
-      versionCode: 4,
+      versionCode: 7,
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#ffcc00', // Matches the yellow background in your image
@@ -62,6 +62,17 @@ module.exports = {
       '@react-native-firebase/app',
       './plugins/with-google-services.js',
       './plugins/with-remove-ad-id.js', // Remove AD_ID permission
+      [
+        'expo-font',
+        {
+          fonts: [
+            './assets/fonts/Inter-Regular.ttf',
+            './assets/fonts/Inter-Light.ttf',
+            './assets/fonts/Inter-Medium.ttf',
+            './assets/fonts/Inter-Bold.ttf',
+          ],
+        },
+      ],
     ],
   },
 };
