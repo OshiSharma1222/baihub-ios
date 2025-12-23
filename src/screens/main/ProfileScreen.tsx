@@ -1,8 +1,9 @@
 // Profile screen
 
 import React from 'react';
-import { View, StyleSheet, ScrollView, Linking, Alert } from 'react-native';
-import { Text, Card, Avatar, Button, Divider } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, Linking, Alert, TouchableOpacity, Platform } from 'react-native';
+import { Text, Card, Avatar, Divider } from 'react-native-paper';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuthStore } from '../../store';
 import { useNavigation } from '@react-navigation/native';
 
@@ -18,22 +19,45 @@ export default function ProfileScreen() {
 
   const handleHelpSupport = async () => {
     const whatsappUrl = `whatsapp://send?phone=${SUPPORT_WHATSAPP_NUMBER}&text=${encodeURIComponent(SUPPORT_MESSAGE)}`;
+    const webUrl = `https://wa.me/${SUPPORT_WHATSAPP_NUMBER}?text=${encodeURIComponent(SUPPORT_MESSAGE)}`;
     
     try {
-      const canOpen = await Linking.canOpenURL(whatsappUrl);
-      if (canOpen) {
-        await Linking.openURL(whatsappUrl);
+      if (Platform.OS === 'ios') {
+        // On iOS, try to open WhatsApp directly first
+        // If it fails, it will throw an error and we'll fallback to web
+        try {
+          const canOpen = await Linking.canOpenURL(whatsappUrl);
+          if (canOpen) {
+            await Linking.openURL(whatsappUrl);
+          } else {
+            // Fallback to web WhatsApp
+            await Linking.openURL(webUrl);
+          }
+        } catch (iosError) {
+          // If canOpenURL fails or openURL fails, try web version
+          await Linking.openURL(webUrl);
+        }
       } else {
-        // Fallback to web WhatsApp
-        const webUrl = `https://wa.me/${SUPPORT_WHATSAPP_NUMBER}?text=${encodeURIComponent(SUPPORT_MESSAGE)}`;
-        await Linking.openURL(webUrl);
+        // Android: check if WhatsApp is installed first
+        const canOpen = await Linking.canOpenURL(whatsappUrl);
+        if (canOpen) {
+          await Linking.openURL(whatsappUrl);
+        } else {
+          // Fallback to web WhatsApp
+          await Linking.openURL(webUrl);
+        }
       }
     } catch (error) {
-      Alert.alert(
-        'Unable to open WhatsApp',
-        'Please make sure WhatsApp is installed on your device.',
-        [{ text: 'OK' }]
-      );
+      // Final fallback: try web version if everything else fails
+      try {
+        await Linking.openURL(webUrl);
+      } catch (webError) {
+        Alert.alert(
+          'Unable to open WhatsApp',
+          'Please make sure WhatsApp is installed on your device or check your internet connection.',
+          [{ text: 'OK' }]
+        );
+      }
     }
   };
 
@@ -67,65 +91,71 @@ export default function ProfileScreen() {
 
       <Card style={styles.card}>
         <Card.Content>
-          <Button
-            mode="text"
+          <TouchableOpacity
             onPress={() => navigation.navigate('Orders' as never)}
-            icon="clipboard-list"
             style={styles.menuItem}
-            textColor="#000000"
+            activeOpacity={0.7}
           >
-            My Orders
-          </Button>
+            <View style={styles.menuItemContent}>
+              <Icon name="clipboard-list" size={24} color="#000000" />
+              <Text style={styles.menuItemText}>My Orders</Text>
+            </View>
+          </TouchableOpacity>
           <Divider />
-          <Button
-            mode="text"
+          <TouchableOpacity
             onPress={handleHelpSupport}
-            icon="help-circle"
             style={styles.menuItem}
-            textColor="#000000"
+            activeOpacity={0.7}
           >
-            Help & Support
-          </Button>
+            <View style={styles.menuItemContent}>
+              <Icon name="help-circle" size={24} color="#000000" />
+              <Text style={styles.menuItemText}>Help & Support</Text>
+            </View>
+          </TouchableOpacity>
           <Divider />
-          <Button
-            mode="text"
+          <TouchableOpacity
             onPress={() => openUrl(ABOUT_URL)}
-            icon="information"
             style={styles.menuItem}
-            textColor="#000000"
+            activeOpacity={0.7}
           >
-            About
-          </Button>
+            <View style={styles.menuItemContent}>
+              <Icon name="information" size={24} color="#000000" />
+              <Text style={styles.menuItemText}>About</Text>
+            </View>
+          </TouchableOpacity>
           <Divider />
-          <Button
-            mode="text"
+          <TouchableOpacity
             onPress={() => openUrl(TERMS_URL)}
-            icon="file-document-outline"
             style={styles.menuItem}
-            textColor="#000000"
+            activeOpacity={0.7}
           >
-            Terms & Conditions
-          </Button>
+            <View style={styles.menuItemContent}>
+              <Icon name="file-document-outline" size={24} color="#000000" />
+              <Text style={styles.menuItemText}>Terms & Conditions</Text>
+            </View>
+          </TouchableOpacity>
           <Divider />
-          <Button
-            mode="text"
+          <TouchableOpacity
             onPress={() => openUrl(PRIVACY_URL)}
-            icon="shield-lock-outline"
             style={styles.menuItem}
-            textColor="#000000"
+            activeOpacity={0.7}
           >
-            Privacy Policy
-          </Button>
+            <View style={styles.menuItemContent}>
+              <Icon name="shield-lock-outline" size={24} color="#000000" />
+              <Text style={styles.menuItemText}>Privacy Policy</Text>
+            </View>
+          </TouchableOpacity>
           <Divider />
-          <Button
-            mode="text"
+          <TouchableOpacity
             onPress={logout}
-            icon="logout"
             style={styles.menuItem}
-            textColor="#000000"
+            activeOpacity={0.7}
           >
-            Logout
-          </Button>
+            <View style={styles.menuItemContent}>
+              <Icon name="logout" size={24} color="#000000" />
+              <Text style={styles.menuItemText}>Logout</Text>
+            </View>
+          </TouchableOpacity>
         </Card.Content>
       </Card>
     </ScrollView>
@@ -158,9 +188,19 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   menuItem: {
-    justifyContent: 'flex-start',
-    paddingVertical: 12,
-    alignItems: "flex-start",
+    width: '100%',
+    paddingVertical: 4,
+  },
+  menuItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  menuItemText: {
+    fontSize: 16,
+    color: '#000000',
+    flex: 1,
+    marginLeft: 12,
   },
 });
 

@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   continueButton: {
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#f9cb00',
     borderRadius: 8,
   },
   continueButtonContent: {
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   cancelButton: {
-    backgroundColor: '#f9cb00',
+    backgroundColor: '#e0e0e0',    
     borderRadius: 8,
   },
   cancelButtonContent: {

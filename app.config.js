@@ -22,6 +22,10 @@ module.exports = {
         NSLocationWhenInUseUsageDescription: 'This app needs access to your location to automatically detect your city. You can enter your city manually if you prefer not to share your location.',
         NSPhotoLibraryUsageDescription: 'This app may need access to your photo library to allow you to upload profile pictures or images for service bookings. This access is optional and you can use the app without granting photo library access.',
         ITSAppUsesNonExemptEncryption: false,
+        LSApplicationQueriesSchemes: [
+          'whatsapp',
+          'whatsapp-api',
+        ],
       },
       googleServicesFile: './GoogleService-Info.plist',
       config: {
@@ -29,7 +33,7 @@ module.exports = {
       },
     },
     android: {
-      versionCode: 7,
+      versionCode: 8,
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#ffcc00', // Matches the yellow background in your image
