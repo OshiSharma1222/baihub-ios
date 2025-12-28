@@ -16,6 +16,7 @@ import { RootStackParamList } from '../../navigation/types';
 import { homeApi, Order } from '../../api/endpoints';
 import { logger } from '../../utils/logger';
 import { baihubAnalytics } from '../../services/baihub-analytics.service';
+import { buildWhatsAppApiUrl, getWhatsAppSupportConfig, formatPhoneForDisplay } from '../../utils/whatsapp';
 import { useRef } from 'react';
 
 type AfterPaymentRouteProp = RouteProp<RootStackParamList, 'AfterPayment'>;
@@ -127,18 +128,21 @@ export default function AfterPaymentScreen() {
   };
 
   const handleContactUs = async () => {
-    const whatsappUrl = 'https://api.whatsapp.com/send/?phone=919810468163&text=Hello+need+to+enquire+about+the+services.&type=phone_number&app_absent=0';
+    const supportConfig = getWhatsAppSupportConfig();
+    const whatsappUrl = buildWhatsAppApiUrl(supportConfig.mobileNumber, supportConfig.message);
+    const displayNumber = formatPhoneForDisplay(supportConfig.mobileNumber);
+    
     try {
       const supported = await Linking.canOpenURL(whatsappUrl);
       if (supported) {
         await Linking.openURL(whatsappUrl);
       } else {
         logger.error('WhatsApp URL not supported');
-        alert('Unable to open WhatsApp. Please contact us at +91 9810468163');
+        alert(`Unable to open WhatsApp. Please contact us at ${displayNumber}`);
       }
     } catch (err) {
       logger.error('Failed to open WhatsApp', err);
-      alert('Unable to open WhatsApp. Please contact us at +91 9810468163');
+      alert(`Unable to open WhatsApp. Please contact us at ${displayNumber}`);
     }
   };
 

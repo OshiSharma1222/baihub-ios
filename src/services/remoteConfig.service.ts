@@ -13,6 +13,10 @@ class RemoteConfigService {
       dev: 'true',
       production: 'false',
     }),
+    whatsapp_support_config: JSON.stringify({
+      mobileNumber: '919810468163',
+      message: 'Hello! I need help',
+    }),
   };
 
   /**
@@ -140,6 +144,37 @@ class RemoteConfigService {
     } catch (error) {
       logger.error(`RemoteConfig: Error getting JSON value for ${key}`, error);
       return defaultValue;
+    }
+  }
+
+  /**
+   * Get WhatsApp support configuration
+   */
+  getWhatsAppSupportConfig(): { mobileNumber: string; message: string } {
+    try {
+      const config = this.getJSON<{ mobileNumber: string; message: string }>(
+        'whatsapp_support_config',
+        {
+          mobileNumber: '919810468163',
+          message: 'Hello! I need help',
+        }
+      );
+
+      if (!config || !config.mobileNumber || !config.message) {
+        logger.warn('RemoteConfig: Invalid WhatsApp support config, using defaults');
+        return {
+          mobileNumber: '919810468163',
+          message: 'Hello! I need help',
+        };
+      }
+
+      return config;
+    } catch (error) {
+      logger.error('RemoteConfig: Error getting WhatsApp support config', error);
+      return {
+        mobileNumber: '919810468163',
+        message: 'Hello! I need help',
+      };
     }
   }
 

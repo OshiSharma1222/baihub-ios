@@ -1,14 +1,13 @@
 // Profile screen
 
 import React from 'react';
-import { View, StyleSheet, ScrollView, Linking, Alert, TouchableOpacity, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Linking, Alert, TouchableOpacity } from 'react-native';
 import { Text, Card, Avatar, Divider } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuthStore } from '../../store';
 import { useNavigation } from '@react-navigation/native';
+import { openWhatsAppSupport, getWhatsAppSupportConfig, formatPhoneForDisplay } from '../../utils/whatsapp';
 
-const SUPPORT_WHATSAPP_NUMBER = '919810468183';
-const SUPPORT_MESSAGE = 'Hello! I need help';
 const TERMS_URL = 'https://www.baihub.co.in/terms-and-conditions';
 const PRIVACY_URL = 'https://www.baihub.co.in/privacy-policy';
 const ABOUT_URL = 'https://www.baihub.co.in/about';
@@ -18,46 +17,17 @@ export default function ProfileScreen() {
   const navigation = useNavigation();
 
   const handleHelpSupport = async () => {
-    const whatsappUrl = `whatsapp://send?phone=${SUPPORT_WHATSAPP_NUMBER}&text=${encodeURIComponent(SUPPORT_MESSAGE)}`;
-    const webUrl = `https://wa.me/${SUPPORT_WHATSAPP_NUMBER}?text=${encodeURIComponent(SUPPORT_MESSAGE)}`;
-    
     try {
-      if (Platform.OS === 'ios') {
-        // On iOS, try to open WhatsApp directly first
-        // If it fails, it will throw an error and we'll fallback to web
-        try {
-          const canOpen = await Linking.canOpenURL(whatsappUrl);
-          if (canOpen) {
-            await Linking.openURL(whatsappUrl);
-          } else {
-            // Fallback to web WhatsApp
-            await Linking.openURL(webUrl);
-          }
-        } catch (iosError) {
-          // If canOpenURL fails or openURL fails, try web version
-          await Linking.openURL(webUrl);
-        }
-      } else {
-        // Android: check if WhatsApp is installed first
-        const canOpen = await Linking.canOpenURL(whatsappUrl);
-        if (canOpen) {
-          await Linking.openURL(whatsappUrl);
-        } else {
-          // Fallback to web WhatsApp
-          await Linking.openURL(webUrl);
-        }
-      }
+      await openWhatsAppSupport();
     } catch (error) {
-      // Final fallback: try web version if everything else fails
-      try {
-        await Linking.openURL(webUrl);
-      } catch (webError) {
-        Alert.alert(
-          'Unable to open WhatsApp',
-          'Please make sure WhatsApp is installed on your device or check your internet connection.',
-          [{ text: 'OK' }]
-        );
-      }
+      const supportConfig = getWhatsAppSupportConfig();
+      console.log('supportConfig', supportConfig);
+      const displayNumber = formatPhoneForDisplay(supportConfig.mobileNumber);
+      Alert.alert(
+        'Unable to open WhatsApp',
+        `Please make sure WhatsApp is installed on your device or check your internet connection. You can contact us at ${displayNumber}.`,
+        [{ text: 'OK' }]
+      );
     }
   };
 
