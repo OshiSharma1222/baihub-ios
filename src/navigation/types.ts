@@ -4,16 +4,21 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 import { Plan } from '../types/home.types';
 
 export type AuthStackParamList = {
-  OnboardingSplash: undefined;
   Login: undefined;
   OTPVerification: { phoneNumber: string };
   UserDetails: undefined;
   Register: undefined;
 };
 
-export type RootStackParamList = {
-  Main: NavigatorScreenParams<MainTabParamList>;
+/** V2 login: onboarding slides first, then Auth (phone/OTP). Reuses Onboarding screen. */
+export type LoginV2StackParamList = {
+  Onboarding: { useSlidesOnlyFlow?: boolean };
   Auth: NavigatorScreenParams<AuthStackParamList>;
+};
+
+export type RootStackParamList = {
+  LoginV2: NavigatorScreenParams<LoginV2StackParamList>;
+  Main: NavigatorScreenParams<MainTabParamList>;
   Profile: undefined;
   Settings: undefined;
   Orders: undefined;

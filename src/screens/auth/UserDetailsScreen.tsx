@@ -1,25 +1,27 @@
 // User Details Screen for new user registration
 
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  TouchableOpacity,
-  Text as RNText,
-  Alert,
-} from 'react-native';
-import { Text, TextInput, Button } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { CommonActions } from '@react-navigation/native';
 import * as Location from 'expo-location';
-import { useAuthStore } from '../../store';
+import React, { useEffect, useState } from 'react';
+import {
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    Text as RNText,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { Button, TextInput } from 'react-native-paper';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useRootNavigation } from '../../navigation/RootNavigationContext';
+import { baihubAnalytics } from '../../services/baihub-analytics.service';
 import { userService } from '../../services/user.service';
+import { useAuthStore } from '../../store';
+import { STORAGE_KEYS } from '../../utils/constants';
 import { logger } from '../../utils/logger';
 import { Storage } from '../../utils/storage';
-import { STORAGE_KEYS } from '../../utils/constants';
-import { baihubAnalytics } from '../../services/baihub-analytics.service';
 
 const LANGUAGES = [
   { label: 'English', value: 'en' },
@@ -32,6 +34,7 @@ const LANGUAGES = [
 
 export default function UserDetailsScreen({ navigation }: any) {
   const { user } = useAuthStore();
+  const { setShowMainApp } = useRootNavigation();
   const [name, setName] = useState('');
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [city, setCity] = useState('');
@@ -163,11 +166,20 @@ export default function UserDetailsScreen({ navigation }: any) {
       // Update user data in store
       await Storage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(updatedUser));
       
-      // Mark new user flow as complete and refresh auth state
       setNewUserComplete();
       await initialize();
-      
-      // Navigation will be handled by RootNavigator based on auth state
+      // Always show onboarding slides before home: go to Onboarding, then user taps "Continue to Home"
+      const root = navigation.getParent();
+      if (root) {
+        root.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: 'Onboarding' }],
+          })
+        );
+      } else {
+        setShowMainApp(true);
+      }
     } catch (error: any) {
       logger.error('Update user details error:', error);
       Alert.alert('Error', error.message || 'Failed to update user details. Please try again.');

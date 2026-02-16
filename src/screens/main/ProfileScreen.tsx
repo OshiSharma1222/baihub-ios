@@ -1,12 +1,13 @@
 // Profile screen
 
-import React from 'react';
-import { View, StyleSheet, ScrollView, Linking, Alert, TouchableOpacity } from 'react-native';
-import { Text, Card, Avatar, Divider } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useAuthStore } from '../../store';
 import { useNavigation } from '@react-navigation/native';
-import { openWhatsAppSupport, getWhatsAppSupportConfig, formatPhoneForDisplay } from '../../utils/whatsapp';
+import React from 'react';
+import { Alert, Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Avatar, Card, Divider, Text } from 'react-native-paper';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useRootNavigation } from '../../navigation/RootNavigationContext';
+import { useAuthStore } from '../../store';
+import { formatPhoneForDisplay, getWhatsAppSupportConfig, openWhatsAppSupport } from '../../utils/whatsapp';
 
 const TERMS_URL = 'https://www.baihub.co.in/terms-and-conditions';
 const PRIVACY_URL = 'https://www.baihub.co.in/privacy-policy';
@@ -14,7 +15,13 @@ const ABOUT_URL = 'https://www.baihub.co.in/about';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
+  const { setShowMainApp } = useRootNavigation();
   const navigation = useNavigation();
+
+  const handleLogout = async () => {
+    await logout();
+    setShowMainApp(false);
+  };
 
   const handleHelpSupport = async () => {
     try {
@@ -117,7 +124,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
           <Divider />
           <TouchableOpacity
-            onPress={logout}
+            onPress={handleLogout}
             style={styles.menuItem}
             activeOpacity={0.7}
           >

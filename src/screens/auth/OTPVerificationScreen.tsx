@@ -1,23 +1,26 @@
 // OTP Verification screen
 
-import React, { useState, useRef, useEffect } from 'react';
+import { CommonActions } from '@react-navigation/native';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  TextInput as RNTextInput,
-  TouchableOpacity,
-  Text as RNText,
+    KeyboardAvoidingView,
+    Platform,
+    Text as RNText,
+    TextInput as RNTextInput,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { Text, Button } from 'react-native-paper';
+import { Button, Text } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useRootNavigation } from '../../navigation/RootNavigationContext';
+import { baihubAnalytics } from '../../services/baihub-analytics.service';
 import { useAuthStore } from '../../store';
 import { logger } from '../../utils/logger';
-import { baihubAnalytics } from '../../services/baihub-analytics.service';
 
 export default function OTPVerificationScreen({ navigation, route }: any) {
+  const { setShowMainApp } = useRootNavigation();
   const { verifyOtp, phoneNumber, isLoading, error, requestOtp } = useAuthStore();
   const [otp, setOtp] = useState(['', '', '', '']);
   const [timer, setTimer] = useState(30);
@@ -139,11 +142,20 @@ export default function OTPVerificationScreen({ navigation, route }: any) {
       
       // Navigate based on isNewUser flag (from requestOtp response)
       if (result.isNewUser) {
-        // New user - navigate to user details screen for onboarding
         navigation.navigate('UserDetails');
       } else {
-        // Existing user - navigation will be handled by RootNavigator
-        // The store will set isAuthenticated to true automatically
+        // Always show onboarding slides before home: go to Onboarding, then user taps "Continue to Home"
+        const root = navigation.getParent();
+        if (root) {
+          root.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [{ name: 'Onboarding' }],
+            })
+          );
+        } else {
+          setShowMainApp(true);
+        }
       }
     } catch (err: any) {
       logger.error('OTP verification failed:', err);

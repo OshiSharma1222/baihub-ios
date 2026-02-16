@@ -1,178 +1,139 @@
-// Onboarding Splash Screen - Auto-advancing carousel for non-authenticated users
-
-import React, { useRef, useState, useEffect } from 'react';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import React, { useCallback, useState } from 'react';
 import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  Dimensions,
-  FlatList,
-  TouchableOpacity,
-  Animated,
-  Platform,
+    Dimensions,
+    FlatList,
+    LayoutChangeEvent,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { AuthStackParamList } from '../../navigation/types';
-import { baihubAnalytics } from '../../services/baihub-analytics.service';
+import { OnboardingFooter, OnboardingSlide } from '../../components/onboarding';
+import { ONBOARDING_SLIDES } from '../../constants/onboarding';
+import { useOnboardingCarousel } from '../../hooks/useOnboardingCarousel';
+import { useOnboardingPhone } from '../../hooks/useOnboardingPhone';
+import { useRootNavigationOptional } from '../../navigation/RootNavigationContext';
+import type { LoginV2StackParamList } from '../../navigation/types';
+import { useAuthStore } from '../../store';
 
-type Props = NativeStackScreenProps<AuthStackParamList, 'OnboardingSplash'>;
+type Props = NativeStackScreenProps<LoginV2StackParamList, 'Onboarding'>;
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const AUTO_ADVANCE_INTERVAL = 3000; // 3 seconds
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+// So slides show immediately even before onLayout (avoids blank carousel)
+const DEFAULT_CAROUSEL_HEIGHT = Math.max(280, SCREEN_HEIGHT * 0.4);
 
-interface OnboardingSlide {
-  id: string;
-  title: string;
-  description: string;
-  illustration: any;
-}
+export default function OnboardingSplashScreen({ navigation, route }: Props) {
+  const useSlidesOnlyFlow = (route.params as { useSlidesOnlyFlow?: boolean } | undefined)?.useSlidesOnlyFlow === true;
+  const { isAuthenticated, isNewUser } = useAuthStore();
+  const rootNav = useRootNavigationOptional();
+  const setShowMainApp = rootNav?.setShowMainApp;
+  const showContinueToHome = isAuthenticated && !isNewUser;
 
-const ONBOARDING_DATA: OnboardingSlide[] = [
-  {
-    id: '1',
-    title: 'Trusted Helpers',
-    description:
-      "Verified, background-checked helpers you can rely on.",
-    illustration: require('../../../assets/onboarding/illustration-screen1.png'),
-  },
-  {
-    id: '2',
-    title: '30-Day Uninterrupted Service.',
-    description:
-      "Guaranteed continuity with instant backup support.",
-    illustration: require('../../../assets/onboarding/illustration-screen2.png'),
-  },
-  {
-    id: '3',
-    title: 'Reliable Help, Always On Time.',
-    description: 'Your helper arrives on time, every day. No more waiting or delays.',
-    illustration: require('../../../assets/onboarding/illustration-screen3.png'),
-  },
-];
+  // Measure carousel container height so slides get explicit dimensions; start with default so slides show right away
+  const [carouselHeight, setCarouselHeight] = useState(DEFAULT_CAROUSEL_HEIGHT);
+  const onCarouselLayout = useCallback((e: LayoutChangeEvent) => {
+    const h = e.nativeEvent.layout.height;
+    if (h > 0) setCarouselHeight(h);
+  }, []);
 
-export default function OnboardingSplashScreen({ navigation }: Props) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Auto-advance carousel
-  useEffect(() => {
-    startAutoAdvance();
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [currentIndex]);
-
-  const startAutoAdvance = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-
-    timerRef.current = setInterval(() => {
-      const nextIndex = (currentIndex + 1) % ONBOARDING_DATA.length;
-      scrollToIndex(nextIndex);
-    }, AUTO_ADVANCE_INTERVAL);
+  const handleContinueToHome = () => {
+    setShowMainApp?.(true);
   };
 
-  const scrollToIndex = (index: number) => {
-    flatListRef.current?.scrollToIndex({
-      index,
-      animated: true,
-    });
-    setCurrentIndex(index);
+  const {
+    currentIndex,
+    flatListRef,
+    onScroll,
+  } = useOnboardingCarousel({
+    screenWidth: SCREEN_WIDTH,
+    enabled: true,
+  });
+
+  const {
+    displayValue,
+    setPhone,
+    isValid,
+    error,
+    isLoading,
+    handleGetStarted,
+  } = useOnboardingPhone({ navigation: navigation as Parameters<typeof useOnboardingPhone>[0]['navigation'] });
+
+  const handleGetStartedSlidesOnly = () => {
+    navigation.navigate('Auth' as never);
   };
 
-  const handleScroll = (event: any) => {
-    const contentOffsetX = event.nativeEvent.contentOffset.x;
-    const newIndex = Math.round(contentOffsetX / SCREEN_WIDTH);
-    if (newIndex !== currentIndex) {
-      setCurrentIndex(newIndex);
-    }
-  };
-
-  const handleGetStarted = async () => {
-    await baihubAnalytics.logGetStartedClicked();
-    navigation.navigate('Login');
-  };
-
-  const renderItem = ({ item, index }: { item: OnboardingSlide; index: number }) => (
-    <View style={styles.slide}>
-      {/* Background Shape */}
-      <View style={styles.illustrationContainer}>
-        <Image
-          source={require('../../../assets/onboarding/background-shape.png')}
-          style={[
-            styles.backgroundShape,
-            {
-              transform: [
-                { rotate: index === 0 ? '104deg' : index === 1 ? '73deg' : '100deg' },
-              ],
-            },
-          ]}
-        />
-        <Image source={item.illustration} style={styles.illustration} resizeMode="contain" />
-      </View>
-    </View>
+  const renderSlide = ({ item }: { item: (typeof ONBOARDING_SLIDES)[0] }) => (
+    <OnboardingSlide slide={item} height={carouselHeight} />
   );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Top Logo */}
-      <View style={styles.logoContainer}>
-        <Image
-          source={require('../../../assets/onboarding/logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
+      {/* Carousel area — flex: 1 fills remaining space above footer; FlatList always mounts so slides are visible */}
+      <View style={styles.carouselWrapper} onLayout={onCarouselLayout}>
+        <FlatList
+          ref={flatListRef}
+          data={ONBOARDING_SLIDES}
+          renderItem={renderSlide}
+          keyExtractor={(item) => item.id}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          getItemLayout={(_, index) => ({
+            length: SCREEN_WIDTH,
+            offset: SCREEN_WIDTH * index,
+            index,
+          })}
         />
       </View>
 
-      {/* Carousel */}
-      <FlatList
-        ref={flatListRef}
-        data={ONBOARDING_DATA}
-        renderItem={renderItem}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        keyExtractor={(item) => item.id}
-        getItemLayout={(_, index) => ({
-          length: SCREEN_WIDTH,
-          offset: SCREEN_WIDTH * index,
-          index,
-        })}
-      />
-
-      {/* Pagination Dots */}
-      <View style={styles.paginationContainer}>
-        {ONBOARDING_DATA.map((_, index) => (
+      {/* Pagination dots */}
+      <View style={styles.dotsContainer}>
+        {ONBOARDING_SLIDES.map((slide, index) => (
           <View
-            key={index}
+            key={slide.id}
             style={[
-              styles.paginationDot,
-              currentIndex === index ? styles.paginationDotActive : styles.paginationDotInactive,
+              styles.dot,
+              index === currentIndex ? styles.dotActive : styles.dotInactive,
             ]}
           />
         ))}
       </View>
 
-      {/* Bottom Sheet */}
-      <View style={styles.bottomSheet}>
-        <View style={styles.contentContainer}>
-          <Text style={styles.title}>{ONBOARDING_DATA[currentIndex].title}</Text>
-          <Text style={styles.description}>{ONBOARDING_DATA[currentIndex].description}</Text>
-          
-          <TouchableOpacity style={styles.button} onPress={handleGetStarted} activeOpacity={0.8}>
-            <Text style={styles.buttonText}>Get Started</Text>
+      {useSlidesOnlyFlow ? (
+        <View style={styles.slidesOnlyFooter}>
+          <TouchableOpacity
+            style={styles.getStartedButton}
+            onPress={handleGetStartedSlidesOnly}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.getStartedText}>Get Started</Text>
           </TouchableOpacity>
+          {showContinueToHome && (
+            <TouchableOpacity
+              onPress={handleContinueToHome}
+              style={styles.continueWrap}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.continueText}>Continue to Home</Text>
+            </TouchableOpacity>
+          )}
         </View>
-      </View>
+      ) : (
+        <OnboardingFooter
+          phoneDisplayValue={displayValue}
+          onPhoneChange={setPhone}
+          isValid={isValid}
+          error={error}
+          isLoading={isLoading}
+          onGetStarted={handleGetStarted}
+          showContinueToHome={showContinueToHome}
+          onContinueToHome={handleContinueToHome}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -180,124 +141,66 @@ export default function OnboardingSplashScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFCC00', // Brand yellow
+    backgroundColor: '#FFF9E6',
   },
-  logoContainer: {
-    height: 100,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 20,
-  },
-  logo: {
-    width: 200,
-    height: 72,
-  },
-  slide: {
-    width: SCREEN_WIDTH,
+  carouselWrapper: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  illustrationContainer: {
-    width: SCREEN_WIDTH,
-    height: 450,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  backgroundShape: {
-    position: 'absolute',
-    width: 400,
-    height: 280,
-    opacity: 0.48,
-  },
-  illustration: {
-    width: 350,
-    height: 400,
-    zIndex: 1,
-  },
-  paginationContainer: {
+  dotsContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    gap: 13,
-    marginBottom: 20,
+    alignItems: 'center',
+    paddingVertical: 12,
+    backgroundColor: '#FFF9E6',
   },
-  paginationDot: {
-    borderRadius: 161,
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginHorizontal: 4,
   },
-  paginationDotActive: {
-    width: 59,
-    height: 4,
-    backgroundColor: '#000000', // Black
+  dotActive: {
+    backgroundColor: '#FFCC00',
+    width: 24,
+    borderRadius: 4,
   },
-  paginationDotInactive: {
-    width: 4,
-    height: 4,
-    backgroundColor: '#FFFFFF', // White
+  dotInactive: {
+    backgroundColor: '#D9D9D9',
   },
-  bottomSheet: {
-    backgroundColor: '#FFFAE6', // Cream color
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
-    paddingTop: 40,
-    paddingBottom: Platform.OS === 'ios' ? 0 : 20,
+  slidesOnlyFooter: {
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 24,
-    minHeight: 270,
+    paddingTop: 20,
+    paddingBottom: 32,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -16,
-    },
-    shadowOpacity: 0.16,
-    shadowRadius: 48,
-    elevation: 24,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 12,
   },
-  contentContainer: {
-    alignItems: 'center',
-  },
-  title: {
-    fontFamily: 'Inter-Bold',
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#000000',
-    textAlign: 'center',
-    marginBottom: 14,
-    maxWidth: 273,
-  },
-  description: {
-    fontFamily: 'Inter-Light',
-    fontSize: 12,
-    fontWeight: '300',
-    color: '#000000',
-    textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 40,
-    maxWidth: 252,
-  },
-  button: {
-    backgroundColor: '#000000', // Black
-    borderRadius: 20,
-    height: 72,
-    width: 306,
+  getStartedButton: {
+    backgroundColor: '#FFCC00',
+    borderRadius: 16,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    marginBottom: 12,
   },
-  buttonText: {
-    fontFamily: 'Inter-Regular',
-    fontSize: 20,
-    fontWeight: '400',
-    color: '#FFCC00', // Brand yellow
+  getStartedText: {
+    fontFamily: 'Inter-Medium',
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  continueWrap: {
+    alignItems: 'center',
+  },
+  continueText: {
+    fontFamily: 'Inter-Medium',
+    fontSize: 14,
+    color: '#424242',
+    textDecorationLine: 'underline',
   },
 });
-
-
-

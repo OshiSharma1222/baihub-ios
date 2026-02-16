@@ -1,14 +1,14 @@
 // Main app navigation with bottom tabs
 
-import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import React from 'react';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { MainTabParamList, RootStackParamList } from './types';
 import HomeScreen from '../screens/main/HomeScreen';
+import OrdersListingScreen from '../screens/main/OrdersListingScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import SettingsScreen from '../screens/main/SettingsScreen';
-import OrdersListingScreen from '../screens/main/OrdersListingScreen';
+import { MainTabParamList, RootStackParamList } from './types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -68,10 +68,6 @@ export default function MainNavigator() {
     </Stack.Navigator>
   );
 }
-
-
-
-
 
 
 

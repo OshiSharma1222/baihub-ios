@@ -4,6 +4,7 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start --dev-client",
+    "start:reset": "expo start --dev-client --clear",
     "start:go": "expo start",
     "android": "expo run:android",
     "android:dev": "expo run:android --variant debug",

@@ -1,20 +1,30 @@
 // Main App component with providers
+// Entry: RootNavigator -> Onboarding (first screen). Main/Home only after user continues or logs in.
 
-import React, { useEffect } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { PaperProvider } from 'react-native-paper';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
-import { lightTheme } from './src/theme';
-import RootNavigator from './src/navigation/RootNavigator';
-import { remoteConfigService } from './src/services/remoteConfig.service';
-import { analyticsService } from './src/services/analytics.service';
-import { logger } from './src/utils/logger';
+import { StatusBar } from 'expo-status-bar';
+import React, { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { PaperProvider } from 'react-native-paper';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from './src/components/common/ToastConfig';
+import RootNavigator from './src/navigation/RootNavigator';
+import { analyticsService } from './src/services/analytics.service';
+import { remoteConfigService } from './src/services/remoteConfig.service';
+import { lightTheme } from './src/theme';
+import { logger } from './src/utils/logger';
+
+const ONBOARDING_FLAG_KEYS = ['hasSeenOnboarding', 'has_seen_onboarding', 'onboarding_complete'];
 
 export default function App() {
+  useEffect(() => {
+    ONBOARDING_FLAG_KEYS.forEach((key) => {
+      AsyncStorage.removeItem(key).catch(() => {});
+    });
+  }, []);
+
   const [fontsLoaded] = useFonts({
     'Inter-Regular': require('./assets/fonts/Inter-Regular.ttf'),
     'Inter-Light': require('./assets/fonts/Inter-Light.ttf'),
